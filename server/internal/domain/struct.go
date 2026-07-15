@@ -15,33 +15,50 @@ type Event struct {
 	Severity        string   `json:"severity"`
 }
 
-var events []Event
+type SearchHints struct {
+	UserID          string `json:"user_id"`
+	FileName        string `json:"file_name"`
+	Action          string `json:"action"`
+	DestinationType string `json:"destination_type"`
+}
 
+type NearbyRule struct {
+	Action string `json:"action"`
+}
+
+// контекст поиска
+type SearchContext struct {
+	Before string        `json:"before"`
+	After  string        `json:"after"`
+	RequireNearby []NearbyRule `json:"require_nearby"`
+}
+
+// запрос поиска
 type SearchRequest struct {
 	DatasetID string `json:"dataset_id"`
-
-	Hints struct {
-		UserID          string `json:"user_id"`
-		FileName        string `json:"file_name"`
-		Action          string `json:"action"`
-		DestinationType string `json:"destination_type"`
-	} `json:"hints"`
+	Hints SearchHints `json:"hints"`
+	Context SearchContext `json:"context"`
 }
 
+// один кандидат
 type SearchResult struct {
-	Score        int      `json:"score"`
+	Score int `json:"score"`
 	MatchedHints []string `json:"matched_hints"`
-	Event        Event    `json:"event"`
+	Event Event `json:"event"`
 }
 
+// ответ поиска
 type SearchResponse struct {
 	SearchID string `json:"search_id"`
-	Status          string         `json:"status"`
-	DatasetID       string         `json:"dataset_id"`
-	TotalCandidates int            `json:"total_candidates"`
-	Candidates      []SearchResult `json:"candidates"`
+	Status string `json:"status"`
+	DatasetID string `json:"dataset_id"`
+	TotalCandidates int `json:"total_candidates"`
+	Candidates []SearchResult `json:"candidates"`
 }
 
+// контекст события
 type EventContext struct {
 	Event Event `json:"event"`
+	Before []Event `json:"before"`
+	After []Event `json:"after"`
 }

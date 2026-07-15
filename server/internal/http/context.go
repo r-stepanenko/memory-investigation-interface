@@ -19,14 +19,21 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	// /api/events/{event_id}/context
 
-	id := strings.TrimPrefix(
+	path := strings.TrimPrefix(
 		r.URL.Path,
 		"/api/events/",
 	)
 
+	parts := strings.Split(path, "/")
+
+	if len(parts) != 2 || parts[1] != "context" {
+		http.NotFound(w, r)
+		return
+	}
+
+	id := parts[0]
 
 	event, ok := s.Events[id]
 
@@ -39,17 +46,44 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	index := s.EventIndex[id]
 
-	response := domain.EventContext{
-		Event: event,
+	events := s.Datasets["control"]
+
+	before := []domain.Event{}
+
+	start := index - 2
+
+	if start < 0 {
+		start = 0
 	}
 
+	for i := start; i < index; i++ {
+		before = append(before, events[i])
+	}
+
+	after := []domain.Event{}
+
+	end := index + 3
+
+	if end > len(events) {
+		end = len(events)
+	}
+
+	for i := index + 1; i < end; i++ {
+		after = append(after, events[i])
+	}
+
+	response := domain.EventContext{
+		Event:  event,
+		Before: before,
+		After:  after,
+	}
 
 	w.Header().Set(
 		"Content-Type",
 		"application/json",
 	)
-
 
 	json.NewEncoder(w).Encode(response)
 }

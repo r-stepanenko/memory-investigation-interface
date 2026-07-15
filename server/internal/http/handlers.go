@@ -2,11 +2,12 @@ package http
 
 import (
 	"encoding/json"
+	"event-memory-search-api/internal/domain"
+	"event-memory-search-api/internal/search"
 	"net/http"
 	"sort"
 	"strings"
-	"event-memory-search-api/internal/domain"
-	"event-memory-search-api/internal/search"
+	"time"
 )
 
 func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
@@ -108,6 +109,44 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 					matched,
 					"destination_type",
 				)
+			}
+		}
+
+		if len(req.Context.RequireNearby) > 0 {
+			before, err1 := time.ParseDuration(
+				req.Context.Before,
+			)
+
+			after, err2 := time.ParseDuration(
+				req.Context.After,
+			)
+
+			if err1 == nil && err2 == nil {
+
+				actions := make([]string, 0)
+
+				for _, rule := range req.Context.RequireNearby {
+
+					actions = append(
+						actions,
+						rule.Action,
+					)
+				}
+				nearbyEvents := search.FindNearbyEvents(
+					events,
+					event,
+					before,
+					after,
+					actions,
+				)
+
+				if len(nearbyEvents) > 0 {
+					score += 10
+					matched = append(
+						matched,
+						"nearby event found",
+					)
+				}
 			}
 		}
 

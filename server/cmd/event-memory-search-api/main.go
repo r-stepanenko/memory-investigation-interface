@@ -14,8 +14,11 @@ func main() {
 	events := datasets.LoadEvents("internal/datasets/events.jsonl")
 
 	eventMap := make(map[string]domain.Event)
-	for _, event := range events {
+	eventIndex := make(map[string]int)
+
+	for i, event := range events {
 		eventMap[event.EventID] = event
+		eventIndex[event.EventID] = i
 	}
 
 	server := &myhttp.Server{
@@ -24,6 +27,7 @@ func main() {
 		},
 		Searches: make(map[string]domain.SearchResponse),
 		Events:   eventMap,
+		EventIndex: eventIndex,
 	}
 
 	nethttp.HandleFunc("/api/search", server.SearchHandler)
