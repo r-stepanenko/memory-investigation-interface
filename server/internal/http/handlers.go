@@ -55,6 +55,8 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 
 		matched := make([]string, 0)
 
+		contributions := make([]domain.Contribution, 0)
+
 		userScore := search.MatchScore(
 			event.UserID,
 			req.Hints.UserID,
@@ -66,6 +68,17 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 			matched = append(
 				matched,
 				"user_id",
+			)
+
+			contributions = append(
+				contributions,
+				domain.Contribution{
+					Hint:   "user_id",
+					Type:   "substring",
+					Query:  req.Hints.UserID,
+					Value:  event.UserID,
+					Points: userScore,
+				},
 			)
 		}
 
@@ -81,6 +94,16 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 				matched,
 				"file_name",
 			)
+			contributions = append(
+				contributions,
+				domain.Contribution{
+					Hint:   "file_name",
+					Type:   "substring",
+					Query:  req.Hints.FileName,
+					Value:  event.FileName,
+					Points: fileScore,
+				},
+			)
 		}
 
 		actionScore := search.MatchScore(
@@ -95,6 +118,16 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 				matched,
 				"action",
 			)
+			contributions = append(
+				contributions,
+				domain.Contribution{
+					Hint:   "action",
+					Type:   "substring",
+					Query:  req.Hints.Action,
+					Value:  event.Action,
+					Points: actionScore,
+				},
+			)
 		}
 
 		if req.Hints.DestinationType != "" {
@@ -108,6 +141,16 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 				matched = append(
 					matched,
 					"destination_type",
+				)
+				contributions = append(
+					contributions,
+					domain.Contribution{
+						Hint:   "destination_type",
+						Type:   "exact",
+						Query:  req.Hints.DestinationType,
+						Value:  event.DestinationType,
+						Points: 20,
+					},
 				)
 			}
 		}
@@ -146,6 +189,15 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 						matched,
 						"nearby event found",
 					)
+					contributions = append(
+						contributions,
+						domain.Contribution{
+							Hint:   "nearby",
+							Type:   "context",
+							Value:  nearbyEvents[0].Action,
+							Points: 10,
+						},
+					)
 				}
 			}
 		}
@@ -154,9 +206,10 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 			results = append(
 				results,
 				domain.SearchResult{
-					Score:        score,
-					MatchedHints: matched,
-					Event:        event,
+					Score:         score,
+					MatchedHints:  matched,
+					Contributions: contributions,
+					Event:         event,
 				},
 			)
 		}

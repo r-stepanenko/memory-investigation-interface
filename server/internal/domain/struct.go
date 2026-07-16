@@ -28,37 +28,53 @@ type NearbyRule struct {
 
 // контекст поиска
 type SearchContext struct {
-	Before string        `json:"before"`
-	After  string        `json:"after"`
+	Before        string       `json:"before"`
+	After         string       `json:"after"`
 	RequireNearby []NearbyRule `json:"require_nearby"`
 }
 
 // запрос поиска
 type SearchRequest struct {
-	DatasetID string `json:"dataset_id"`
-	Hints SearchHints `json:"hints"`
-	Context SearchContext `json:"context"`
+	DatasetID string        `json:"dataset_id"`
+	Hints     SearchHints   `json:"hints"`
+	Context   SearchContext `json:"context"`
 }
 
 // один кандидат
 type SearchResult struct {
-	Score int `json:"score"`
-	MatchedHints []string `json:"matched_hints"`
-	Event Event `json:"event"`
+	Score         int            `json:"score"`
+	MatchedHints  []string       `json:"matched_hints"`
+	Contributions []Contribution `json:"-"`
+	Event         Event          `json:"event"`
 }
 
 // ответ поиска
 type SearchResponse struct {
-	SearchID string `json:"search_id"`
-	Status string `json:"status"`
-	DatasetID string `json:"dataset_id"`
-	TotalCandidates int `json:"total_candidates"`
-	Candidates []SearchResult `json:"candidates"`
+	SearchID        string         `json:"search_id"`
+	Status          string         `json:"status"`
+	DatasetID       string         `json:"dataset_id"`
+	TotalCandidates int            `json:"total_candidates"`
+	Candidates      []SearchResult `json:"candidates"`
 }
 
 // контекст события
 type EventContext struct {
-	Event Event `json:"event"`
+	Event  Event   `json:"event"`
 	Before []Event `json:"before"`
-	After []Event `json:"after"`
+	After  []Event `json:"after"`
+}
+
+type Contribution struct {
+	Hint   string `json:"hint"`
+	Type   string `json:"type"`
+	Value  string `json:"value"`
+	Query  string `json:"query,omitempty"`
+	Points int    `json:"points"`
+}
+
+type ExplainResponse struct {
+	SearchID      string         `json:"search_id"`
+	EventID       string         `json:"event_id"`
+	Score         int            `json:"score"`
+	Contributions []Contribution `json:"contributions"`
 }
