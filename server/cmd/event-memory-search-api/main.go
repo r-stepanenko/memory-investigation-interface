@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	myhttp "event-memory-search-api/internal/http"
 	nethttp "net/http"
@@ -25,18 +26,25 @@ func main() {
 		Datasets: map[string][]domain.Event{
 			"control": events,
 		},
-		Searches: make(map[string]domain.SearchResponse),
-		Events:   eventMap,
+		Searches:   make(map[string]domain.SearchResponse),
+		Events:     eventMap,
 		EventIndex: eventIndex,
 	}
 
 	nethttp.HandleFunc("/api/search", server.SearchHandler)
 	nethttp.HandleFunc("/api/health", server.HealthHandler)
 	nethttp.HandleFunc("/api/datasets", server.DatasetsHandler)
-	nethttp.HandleFunc("/api/search/", server.SearchResultHandler)
+	nethttp.HandleFunc("/api/search/", server.SearchRouter)
 	nethttp.HandleFunc("/api/events/", server.ContextHandler)
 
 	log.Println("Starting server on :8080")
-	err := nethttp.ListenAndServe(":8080", nil)
+	httpServer := &nethttp.Server{
+		Addr: ":8080",
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	err := httpServer.ListenAndServe()
 	log.Fatal(err)
 }

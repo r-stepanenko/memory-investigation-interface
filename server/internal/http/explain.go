@@ -2,9 +2,9 @@ package http
 
 import (
 	"encoding/json"
+	"event-memory-search-api/internal/domain"
 	"net/http"
 	"strings"
-	"event-memory-search-api/internal/domain"
 )
 
 func (s *Server) ExplainHandler(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +34,9 @@ func (s *Server) ExplainHandler(w http.ResponseWriter, r *http.Request) {
 
 	searchID := parts[0]
 	eventID := parts[2]
+	s.mu.RLock()
 	searchResult, ok := s.Searches[searchID]
+	s.mu.RUnlock()
 
 	if !ok {
 		http.Error(
@@ -59,7 +61,15 @@ func (s *Server) ExplainHandler(w http.ResponseWriter, r *http.Request) {
 				"application/json",
 			)
 
-			json.NewEncoder(w).Encode(response)
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				http.Error(
+					w,
+					"failed to encode response",
+					http.StatusInternalServerError,
+				)
+				return
+			}
+
 			return
 		}
 	}

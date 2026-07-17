@@ -232,6 +232,17 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 		TotalCandidates: len(results),
 		Candidates:      results,
 	}
+
+	s.mu.Lock()
 	s.Searches[searchID] = resp
-	json.NewEncoder(w).Encode(resp)
+	s.mu.Unlock()
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(
+			w,
+			"failed to encode response",
+			http.StatusInternalServerError,
+		)
+		return
+	}
 }

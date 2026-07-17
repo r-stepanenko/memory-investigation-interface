@@ -129,3 +129,45 @@ func TestExplainHandlerMethodNotAllowed(t *testing.T) {
 		)
 	}
 }
+
+func TestExplainRoutingThroughMux(t *testing.T) {
+
+	server := newTestServer()
+
+	server.Searches["srch_test_1"] = domain.SearchResponse{
+		SearchID: "srch_test_1",
+		Status:   "done",
+		Candidates: []domain.SearchResult{
+			{
+				Event: domain.Event{
+					EventID: "evt_1",
+				},
+			},
+		},
+	}
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc(
+		"/api/search/",
+		server.SearchResultHandler,
+	)
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/search/srch_test_1/candidates/evt_1/explain",
+		nil,
+	)
+
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf(
+			"expected %d got %d",
+			http.StatusOK,
+			rec.Code,
+		)
+	}
+}
