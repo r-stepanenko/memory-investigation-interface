@@ -7,44 +7,62 @@ import (
 )
 
 func (s *Server) SearchResultHandler(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
+
 	if strings.Contains(r.URL.Path, "/candidates/") {
 		s.ExplainHandler(w, r)
 		return
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(
+		WriteError(
 			w,
-			"method not allowed",
 			http.StatusMethodNotAllowed,
+			"METHOD_NOT_ALLOWED",
+			"method not allowed",
 		)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
 
 	searchID := strings.TrimPrefix(
 		r.URL.Path,
 		"/api/search/",
 	)
 
+	if searchID == "" {
+		WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_REQUEST",
+			"search_id is required",
+		)
+		return
+	}
+
 	s.mu.RLock()
 	result, ok := s.Searches[searchID]
 	s.mu.RUnlock()
+
 	if !ok {
-		http.Error(
+		WriteError(
 			w,
-			"search not found",
 			http.StatusNotFound,
+			"SEARCH_NOT_FOUND",
+			"search not found",
 		)
 		return
 	}
 
 	if err := json.NewEncoder(w).Encode(result); err != nil {
-		http.Error(
+		WriteError(
 			w,
-			"failed to encode response",
 			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"failed to encode response",
 		)
 		return
 	}

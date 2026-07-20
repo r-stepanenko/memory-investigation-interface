@@ -12,7 +12,10 @@ import (
 )
 
 func main() {
-	events := datasets.LoadEvents("internal/datasets/events.jsonl")
+	events, err := datasets.LoadEvents("internal/datasets/events.jsonl")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	eventMap := make(map[string]domain.Event)
 	eventIndex := make(map[string]int)
@@ -39,12 +42,11 @@ func main() {
 
 	log.Println("Starting server on :8080")
 	httpServer := &nethttp.Server{
-		Addr: ":8080",
+		Addr:         ":8080",
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
-	err := httpServer.ListenAndServe()
-	log.Fatal(err)
+	log.Fatal(httpServer.ListenAndServe())
 }

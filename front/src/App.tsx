@@ -58,7 +58,11 @@ function App() {
       console.log(error);
       if (error.response) {
         setMessage(
-          "Ошибка сервера: " + error.response.data
+          "Ошибка сервера: " +
+          (
+            error.response.data?.error?.message ??
+            "неизвестная ошибка"
+          )
         );
       }
       else {

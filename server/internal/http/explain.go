@@ -8,11 +8,18 @@ import (
 )
 
 func (s *Server) ExplainHandler(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
+
 	if r.Method != http.MethodGet {
-		http.Error(
+		WriteError(
 			w,
-			"method not allowed",
 			http.StatusMethodNotAllowed,
+			"METHOD_NOT_ALLOWED",
+			"method not allowed",
 		)
 		return
 	}
@@ -28,27 +35,36 @@ func (s *Server) ExplainHandler(w http.ResponseWriter, r *http.Request) {
 		parts[1] != "candidates" ||
 		parts[3] != "explain" {
 
-		http.NotFound(w, r)
+		WriteError(
+			w,
+			http.StatusNotFound,
+			"INVALID_PATH",
+			"invalid explain path",
+		)
 		return
 	}
 
 	searchID := parts[0]
 	eventID := parts[2]
+
 	s.mu.RLock()
 	searchResult, ok := s.Searches[searchID]
 	s.mu.RUnlock()
 
 	if !ok {
-		http.Error(
+		WriteError(
 			w,
-			"search not found",
 			http.StatusNotFound,
+			"SEARCH_NOT_FOUND",
+			"search not found",
 		)
 		return
 	}
 
 	for _, candidate := range searchResult.Candidates {
+
 		if candidate.Event.EventID == eventID {
+
 			response := domain.ExplainResponse{
 				SearchID:      searchID,
 				EventID:       eventID,
@@ -56,16 +72,12 @@ func (s *Server) ExplainHandler(w http.ResponseWriter, r *http.Request) {
 				Contributions: candidate.Contributions,
 			}
 
-			w.Header().Set(
-				"Content-Type",
-				"application/json",
-			)
-
 			if err := json.NewEncoder(w).Encode(response); err != nil {
-				http.Error(
+				WriteError(
 					w,
-					"failed to encode response",
 					http.StatusInternalServerError,
+					"INTERNAL_ERROR",
+					"failed to encode response",
 				)
 				return
 			}
@@ -74,9 +86,10 @@ func (s *Server) ExplainHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	http.Error(
+	WriteError(
 		w,
-		"candidate not found",
 		http.StatusNotFound,
+		"CANDIDATE_NOT_FOUND",
+		"candidate not found",
 	)
 }

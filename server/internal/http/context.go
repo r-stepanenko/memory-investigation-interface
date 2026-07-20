@@ -10,11 +10,17 @@ import (
 
 func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
+
 	if r.Method != http.MethodGet {
-		http.Error(
+		WriteError(
 			w,
-			"method not allowed",
 			http.StatusMethodNotAllowed,
+			"METHOD_NOT_ALLOWED",
+			"method not allowed",
 		)
 		return
 	}
@@ -29,7 +35,12 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(path, "/")
 
 	if len(parts) != 2 || parts[1] != "context" {
-		http.NotFound(w, r)
+		WriteError(
+			w,
+			http.StatusNotFound,
+			"INVALID_PATH",
+			"invalid event context path",
+		)
 		return
 	}
 
@@ -38,10 +49,11 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 	event, ok := s.Events[id]
 
 	if !ok {
-		http.Error(
+		WriteError(
 			w,
-			"event not found",
 			http.StatusNotFound,
+			"EVENT_NOT_FOUND",
+			"event not found",
 		)
 		return
 	}
@@ -80,10 +92,7 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		After:  after,
 	}
 
-	w.Header().Set(
-		"Content-Type",
-		"application/json",
-	)
-
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		return
+	}
 }

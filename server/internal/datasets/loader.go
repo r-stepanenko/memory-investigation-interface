@@ -3,23 +3,17 @@ package datasets
 import (
 	"bufio"
 	"encoding/json"
-	"log"
+	"fmt"
 	"os"
-
 	"event-memory-search-api/internal/domain"
 )
 
-func LoadEvents(path string) []domain.Event {
+func LoadEvents(path string) ([]domain.Event, error) {
 
 	file, err := os.Open(path)
-
 	if err != nil {
-		log.Fatalf(
-			"failed to open dataset: %v",
-			err,
-		)
+		return nil, fmt.Errorf("failed to open dataset: %w", err)
 	}
-
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
@@ -27,29 +21,18 @@ func LoadEvents(path string) []domain.Event {
 	events := make([]domain.Event, 0)
 
 	for scanner.Scan() {
-
 		var event domain.Event
 
 		if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
-			log.Printf(
-				"skip invalid event: %v",
-				err,
-			)
-			continue
+			return nil, fmt.Errorf("invalid event: %w", err)
 		}
 
-		events = append(
-			events,
-			event,
-		)
+		events = append(events, event)
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Fatalf(
-			"failed reading dataset: %v",
-			err,
-		)
+		return nil, fmt.Errorf("failed reading dataset: %w", err)
 	}
 
-	return events
+	return events, nil
 }
