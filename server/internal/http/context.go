@@ -2,10 +2,12 @@ package http
 
 import (
 	"encoding/json"
+	
 	"net/http"
 	"strings"
-
+	
 	"event-memory-search-api/internal/domain"
+	"time"
 )
 
 func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
@@ -58,32 +60,72 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	index := s.EventIndex[id]
-
 	events := s.Datasets["control"]
 
 	before := []domain.Event{}
-
-	start := index - 2
-
-	if start < 0 {
-		start = 0
-	}
-
-	for i := start; i < index; i++ {
-		before = append(before, events[i])
-	}
-
 	after := []domain.Event{}
 
-	end := index + 3
+	targetTime, err := time.Parse(
+		time.RFC3339,
+		event.Timestamp,
+	)
 
-	if end > len(events) {
-		end = len(events)
+	if err != nil {
+		WriteError(
+			w,
+			http.StatusInternalServerError,
+			"INVALID_TIMESTAMP",
+			"event timestamp invalid",
+		)
+		return
 	}
 
-	for i := index + 1; i < end; i++ {
-		after = append(after, events[i])
+	// временные окна
+	beforeWindow := 30 * time.Minute
+	afterWindow := 30 * time.Minute
+
+	for _, e := range events {
+
+		if e.EventID == event.EventID {
+			continue
+		}
+
+		if e.UserID != event.UserID {
+			continue
+		}
+
+		if e.FileName != event.FileName {
+			continue
+		}
+
+		eventTime, err := time.Parse(
+			time.RFC3339,
+			e.Timestamp,
+		)
+
+		if err != nil {
+			continue
+		}
+
+		// события до
+		if eventTime.Before(targetTime) {
+
+			diff := targetTime.Sub(eventTime)
+
+			if diff <= beforeWindow {
+				before = append(before, e)
+			}
+		}
+
+		// события после
+		if eventTime.After(targetTime) {
+
+			diff := eventTime.Sub(targetTime)
+
+			if diff <= afterWindow {
+				after = append(after, e)
+			}
+		}
 	}
 
 	response := domain.EventContext{

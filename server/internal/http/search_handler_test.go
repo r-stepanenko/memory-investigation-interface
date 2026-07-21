@@ -3,22 +3,24 @@ package http
 import (
 	"bytes"
 	"encoding/json"
+	"event-memory-search-api/internal/domain"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"event-memory-search-api/internal/domain"
 )
 
 func newTestServer() *Server {
 	events := []domain.Event{
 		{
 			EventID:   "evt_1",
+			Timestamp: "2026-06-20T10:00:00Z",
 			UserID:    "ivan",
 			Action:    "email_send",
 			FileName:  "clients.xlsx",
 		},
 		{
 			EventID:   "evt_2",
+			Timestamp: "2026-06-20T10:20:00Z",
 			UserID:    "alex",
 			Action:    "file_copy",
 			FileName:  "salary.xlsx",
@@ -39,8 +41,8 @@ func newTestServer() *Server {
 		Datasets: map[string][]domain.Event{
 			"control": events,
 		},
-		Searches:  make(map[string]domain.SearchResponse),
-		Events:    eventMap,
+		Searches:   make(map[string]domain.SearchResponse),
+		Events:     eventMap,
 		EventIndex: eventIndex,
 	}
 }

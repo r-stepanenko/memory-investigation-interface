@@ -1,21 +1,17 @@
 package search
 
-import (
-	"strings"
-
-	"event-memory-search-api/internal/domain"
-)
+import "event-memory-search-api/internal/domain"
 
 func CalculateScore(
 	event domain.Event,
 	hints domain.SearchHints,
 ) (
-	int,
+	float64,
 	[]string,
 	[]domain.Contribution,
 ) {
 
-	score := 0
+	score := 0.0
 
 	matched := make([]string, 0)
 
@@ -45,51 +41,33 @@ func CalculateScore(
 		return 0, matched, contributions
 	}
 
-	weight := 100 / hintCount
+	weight := 100.0 / float64(hintCount)
 
 	// USER_ID
 
 	if hints.UserID != "" {
 
-		value := strings.ToLower(event.UserID)
-		query := strings.ToLower(hints.UserID)
+		matchType, multiplier := MatchUserID(
+			event.UserID,
+			hints.UserID,
+		)
 
-		if value == query {
+		if matchType != None {
 
-			score += weight
-
-			matched = append(
-				matched,
-				"user_id exact",
-			)
-
-			contributions = append(
-				contributions,
-				domain.Contribution{
-					Hint:   "user_id",
-					Type:   "exact",
-					Value:  event.UserID,
-					Query:  hints.UserID,
-					Points: weight,
-				},
-			)
-
-		} else if strings.Contains(value, query) {
-
-			points := weight / 2
+			points := weight * multiplier
 
 			score += points
 
 			matched = append(
 				matched,
-				"user_id substring",
+				"user_id "+string(matchType),
 			)
 
 			contributions = append(
 				contributions,
 				domain.Contribution{
 					Hint:   "user_id",
-					Type:   "substring",
+					Type:   string(matchType),
 					Value:  event.UserID,
 					Query:  hints.UserID,
 					Points: points,
@@ -102,44 +80,27 @@ func CalculateScore(
 
 	if hints.FileName != "" {
 
-		value := strings.ToLower(event.FileName)
-		query := strings.ToLower(hints.FileName)
+		matchType, multiplier := MatchFileName(
+			event.FileName,
+			hints.FileName,
+		)
 
-		if value == query {
+		if matchType != None {
 
-			score += weight
-
-			contributions = append(
-				contributions,
-				domain.Contribution{
-					Hint:   "file_name",
-					Type:   "exact",
-					Value:  event.FileName,
-					Query:  hints.FileName,
-					Points: weight,
-				},
-			)
-			matched = append(
-				matched,
-				"file_name exact",
-			)
-
-		} else if strings.Contains(value, query) {
-
-			points := weight / 2
+			points := weight * multiplier
 
 			score += points
 
 			matched = append(
 				matched,
-				"file_name substring",
+				"file_name "+string(matchType),
 			)
 
 			contributions = append(
 				contributions,
 				domain.Contribution{
 					Hint:   "file_name",
-					Type:   "substring",
+					Type:   string(matchType),
 					Value:  event.FileName,
 					Query:  hints.FileName,
 					Points: points,
@@ -152,44 +113,27 @@ func CalculateScore(
 
 	if hints.Action != "" {
 
-		value := strings.ToLower(event.Action)
-		query := strings.ToLower(hints.Action)
+		matchType, multiplier := MatchExact(
+			event.Action,
+			hints.Action,
+		)
 
-		if value == query {
+		if matchType != None {
 
-			score += weight
-
-			contributions = append(
-				contributions,
-				domain.Contribution{
-					Hint:   "action",
-					Type:   "exact",
-					Value:  event.Action,
-					Query:  hints.Action,
-					Points: weight,
-				},
-			)
-			matched = append(
-				matched,
-				"action exact",
-			)
-
-		} else if strings.Contains(value, query) {
-
-			points := weight / 2
+			points := weight * multiplier
 
 			score += points
 
 			matched = append(
 				matched,
-				"action substring",
+				"action "+string(matchType),
 			)
 
 			contributions = append(
 				contributions,
 				domain.Contribution{
 					Hint:   "action",
-					Type:   "substring",
+					Type:   string(matchType),
 					Value:  event.Action,
 					Query:  hints.Action,
 					Points: points,
@@ -198,28 +142,34 @@ func CalculateScore(
 		}
 	}
 
+	// DESTINATION TYPE
+
 	if hints.DestinationType != "" {
 
-		value := strings.ToLower(event.DestinationType)
-		query := strings.ToLower(hints.DestinationType)
+		matchType, multiplier := MatchExact(
+			event.DestinationType,
+			hints.DestinationType,
+		)
 
-		if value == query {
+		if matchType != None {
 
-			score += weight
+			points := weight * multiplier
+
+			score += points
 
 			matched = append(
 				matched,
-				"destination_type exact",
+				"destination_type "+string(matchType),
 			)
 
 			contributions = append(
 				contributions,
 				domain.Contribution{
 					Hint:   "destination_type",
-					Type:   "exact",
+					Type:   string(matchType),
 					Value:  event.DestinationType,
 					Query:  hints.DestinationType,
-					Points: weight,
+					Points: points,
 				},
 			)
 		}

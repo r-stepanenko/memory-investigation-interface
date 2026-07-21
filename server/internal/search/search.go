@@ -1,48 +1,77 @@
 package search
 
-import (
-	"strings"
+import "strings"
+
+type MatchType string
+
+const (
+	Exact     MatchType = "exact"
+	Substring MatchType = "substring"
+	Fuzzy     MatchType = "fuzzy"
+	None      MatchType = "none"
 )
 
 func Normalize(s string) string {
-	return strings.ToLower(
-		strings.TrimSpace(s),
-	)
+	s = strings.ToLower(s)
+	s = strings.TrimSpace(s)
+	s = strings.NewReplacer(
+		"_", " ",
+		"-", " ",
+		".", " ",
+	).Replace(s)
+
+	return s
 }
 
-func Contains(text string, query string) bool {
-
-	text = strings.ToLower(
-		strings.TrimSpace(text),
-	)
-	query = strings.ToLower(
-		strings.TrimSpace(query),
-	)
-	if query == "" {
-		return false
-	}
-	return strings.Contains(
-		text,
-		query,
-	)
-}
-
-func MatchScore(value string, query string) int {
+func MatchUserID(value string, query string) (MatchType, float64) {
 	value = Normalize(value)
 	query = Normalize(query)
 
-	if query == "" {
-		return 0
-	}
 	if value == query {
-		return 50
+		return Exact, 1
 	}
-	if strings.HasPrefix(value, query) {
-		return 40
-	}
+
 	if strings.Contains(value, query) {
-		return 20
+		return Substring, 0.5
 	}
-	return 0
+
+	similarity := Similarity(value, query)
+
+	if similarity >= 0.6 {
+		return Fuzzy, 0.45
+	}
+
+	return None, 0
 }
 
+func MatchFileName(value string, query string) (MatchType, float64) {
+	value = Normalize(value)
+	query = Normalize(query)
+
+	if value == query {
+		return Exact, 1
+	}
+
+	if strings.Contains(value, query) {
+		return Substring, 0.5
+	}
+
+	similarity := Similarity(value, query)
+
+	if similarity >= 0.75 {
+		return Fuzzy, 0.4
+	}
+
+	return None, 0
+}
+
+func MatchExact(value string, query string) (MatchType, float64) {
+	value = Normalize(value)
+	query = Normalize(query)
+
+	if value == query {
+		return Exact, 1
+	}
+
+	return None, 0
+}

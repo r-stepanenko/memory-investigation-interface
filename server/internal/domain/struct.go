@@ -33,16 +33,28 @@ type SearchContext struct {
 	RequireNearby []NearbyRule `json:"require_nearby"`
 }
 
+type TimeFilter struct {
+	Around    string `json:"around"`
+	Tolerance string `json:"tolerance"`
+}
+
 // запрос поиска
+type Scoring struct {
+	MinScore float64 `json:"min_score"`
+	Limit    int     `json:"limit"`
+}
+
 type SearchRequest struct {
 	DatasetID string        `json:"dataset_id"`
+	Time      TimeFilter    `json:"time"`
 	Hints     SearchHints   `json:"hints"`
 	Context   SearchContext `json:"context"`
+	Scoring   Scoring       `json:"scoring"`
 }
 
 // один кандидат
 type SearchResult struct {
-	Score         int            `json:"score"`
+	Score         float64        `json:"score"`
 	MatchedHints  []string       `json:"matched_hints"`
 	Contributions []Contribution `json:"-"`
 	Event         Event          `json:"event"`
@@ -65,16 +77,16 @@ type EventContext struct {
 }
 
 type Contribution struct {
-	Hint   string `json:"hint"`
-	Type   string `json:"type"`
-	Value  string `json:"value"`
-	Query  string `json:"query,omitempty"`
-	Points int    `json:"points"`
+	Hint   string  `json:"hint"`
+	Type   string  `json:"type"`
+	Value  string  `json:"value"`
+	Query  string  `json:"query,omitempty"`
+	Points float64 `json:"points"`
 }
 
 type ExplainResponse struct {
 	SearchID      string         `json:"search_id"`
 	EventID       string         `json:"event_id"`
-	Score         int            `json:"score"`
+	Score         float64        `json:"score"`
 	Contributions []Contribution `json:"contributions"`
 }

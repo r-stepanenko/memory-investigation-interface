@@ -5,6 +5,7 @@ import (
 	"event-memory-search-api/internal/domain"
 	"net/http"
 	"strings"
+	"fmt"
 )
 
 func (s *Server) ExplainHandler(w http.ResponseWriter, r *http.Request) {
@@ -30,6 +31,10 @@ func (s *Server) ExplainHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	parts := strings.Split(path, "/")
+
+	fmt.Println("RAW PATH:", r.URL.Path)
+	fmt.Println("PATH:", path)
+	fmt.Println("PARTS:", parts)
 
 	if len(parts) != 4 ||
 		parts[1] != "candidates" ||

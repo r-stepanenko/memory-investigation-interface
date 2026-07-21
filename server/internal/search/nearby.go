@@ -6,60 +6,53 @@ import (
 	"event-memory-search-api/internal/domain"
 )
 
-
 func FindNearbyEvents(
 	events []domain.Event,
 	target domain.Event,
 	before time.Duration,
 	after time.Duration,
-	requiredActions []string,
+	actions []string,
 ) []domain.Event {
 
-	result := make([]domain.Event, 0)
+	result := []domain.Event{}
 
-	targetTime, err := time.Parse(
+	targetTime, _ := time.Parse(
 		time.RFC3339,
 		target.Timestamp,
 	)
 
-	if err != nil {
-		return result
-	}
+	for _, e := range events {
 
-	start := targetTime.Add(-before)
+		if e.EventID == target.EventID {
+			continue
+		}
 
-	end := targetTime.Add(after)
-
-	for _, event := range events {
-
-		if event.EventID == target.EventID {
+		// важно
+		if e.UserID != target.UserID {
 			continue
 		}
 
 		eventTime, err := time.Parse(
 			time.RFC3339,
-			event.Timestamp,
+			e.Timestamp,
 		)
 
 		if err != nil {
 			continue
 		}
 
-		if eventTime.Before(start) ||
-			eventTime.After(end) {
+		diff := eventTime.Sub(targetTime)
 
+		if diff < -before || diff > after {
 			continue
 		}
 
-		for _, action := range requiredActions {
-			if event.Action == action {
-				result = append(
-					result,
-					event,
-				)
-				break
+		for _, action := range actions {
+			if e.Action == action {
+				result = append(result, e)
 			}
 		}
 	}
+
 	return result
 }
