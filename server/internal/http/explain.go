@@ -3,9 +3,9 @@ package http
 import (
 	"encoding/json"
 	"event-memory-search-api/internal/domain"
+	"fmt"
 	"net/http"
 	"strings"
-	"fmt"
 )
 
 func (s *Server) ExplainHandler(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +75,7 @@ func (s *Server) ExplainHandler(w http.ResponseWriter, r *http.Request) {
 				EventID:       eventID,
 				Score:         candidate.Score,
 				Contributions: candidate.Contributions,
+				MissedHints:   candidate.MissedHints,
 			}
 
 			if err := json.NewEncoder(w).Encode(response); err != nil {

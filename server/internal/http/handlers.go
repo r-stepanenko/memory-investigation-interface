@@ -214,14 +214,18 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		score, matched, contributions := search.CalculateScore(
+		score, _, _, _ := search.CalculateScore(
 			event,
 			req.Hints,
+			nil,
+			len(actions) > 0,
 		)
+
+		var nearby []domain.Event
 
 		if len(actions) > 0 && score > 0 {
 
-			nearby := search.FindNearbyEvents(
+			nearby = search.FindNearbyEvents(
 				events,
 				event,
 				before,
@@ -235,41 +239,29 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 				foundActions[e.Action] = true
 			}
 
-			allNearbyActionsFound := true
+			missing := false
 
 			for _, action := range actions {
+
 				if !foundActions[action] {
-					allNearbyActionsFound = false
+					missing = true
 					break
 				}
+
 			}
 
-			if allNearbyActionsFound {
+			if missing {
 
-				score += 10
-
-				matched = append(
-					matched,
-					"nearby event found",
-				)
-
-				values := make([]string, 0)
-
-				for _, e := range nearby {
-					values = append(values, e.Action)
-				}
-
-				contributions = append(
-					contributions,
-					domain.Contribution{
-						Hint:   "nearby",
-						Type:   "context",
-						Value:  strings.Join(values, ","),
-						Points: 10,
-					},
-				)
+				continue
 			}
 		}
+
+		score, matched, contributions, missedHints := search.CalculateScore(
+			event,
+			req.Hints,
+			nearby,
+			len(actions) > 0,
+		)
 
 		if score > 100 {
 			score = 100
@@ -288,6 +280,7 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 					Score:         score,
 					MatchedHints:  matched,
 					Contributions: contributions,
+					MissedHints:   missedHints,
 					Event:         event,
 				},
 			)

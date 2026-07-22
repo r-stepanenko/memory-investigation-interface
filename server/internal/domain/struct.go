@@ -57,6 +57,7 @@ type SearchResult struct {
 	Score         float64        `json:"score"`
 	MatchedHints  []string       `json:"matched_hints"`
 	Contributions []Contribution `json:"-"`
+	MissedHints   []MissedHint   `json:"-"`
 	Event         Event          `json:"event"`
 }
 
@@ -77,11 +78,18 @@ type EventContext struct {
 }
 
 type Contribution struct {
-	Hint   string  `json:"hint"`
-	Type   string  `json:"type"`
-	Value  string  `json:"value"`
-	Query  string  `json:"query,omitempty"`
-	Points float64 `json:"points"`
+	Hint    string  `json:"hint"`
+	Type    string  `json:"type"`
+	Value   string  `json:"value"`
+	Query   string  `json:"query,omitempty"`
+	Points  float64 `json:"points"`
+	Matched bool    `json:"matched"`
+	Reason  string  `json:"reason"`
+}
+
+type MissedHint struct {
+	Hint   string `json:"hint"`
+	Reason string `json:"reason"`
 }
 
 type ExplainResponse struct {
@@ -89,4 +97,5 @@ type ExplainResponse struct {
 	EventID       string         `json:"event_id"`
 	Score         float64        `json:"score"`
 	Contributions []Contribution `json:"contributions"`
+	MissedHints   []MissedHint   `json:"missed_hints,omitempty"`
 }
