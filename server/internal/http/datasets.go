@@ -6,13 +6,19 @@ import (
 )
 
 func (s *Server) DatasetsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+    Cors(w)
 
-	names := make([]string, 0)
+    if r.Method == http.MethodOptions {
+        return
+    }
 
-	for name := range s.Datasets {
-		names = append(names, name)
-	}
+    w.Header().Set("Content-Type", "application/json")
 
-	json.NewEncoder(w).Encode(names)
+    names := make([]string, 0)
+
+    for name := range s.Datasets {
+        names = append(names, name)
+    }
+
+    json.NewEncoder(w).Encode(names)
 }

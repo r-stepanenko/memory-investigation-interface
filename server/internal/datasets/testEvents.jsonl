@@ -1,0 +1,2 @@
+{"event_id":"evt_32","timestamp":"2026-06-20T11:20:00Z","user_id":"ivan","action":"file_copy","file_name":"client_data.zip","destination_type":"usb"}
+{"event_id":"evt_33","timestamp":"2026-06-20T11:40:00Z","user_id":"ivan","action":"email_send","file_name":"client_data.zip","destination_type":"external"}

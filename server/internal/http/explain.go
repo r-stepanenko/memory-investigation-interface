@@ -9,11 +9,16 @@ import (
 )
 
 func (s *Server) ExplainHandler(w http.ResponseWriter, r *http.Request) {
+	Cors(w)
 
 	w.Header().Set(
 		"Content-Type",
 		"application/json",
 	)
+
+	if r.Method == http.MethodOptions {
+		return
+	}
 
 	if r.Method != http.MethodGet {
 		WriteError(
