@@ -43,6 +43,14 @@ func CalculateScore(
 		hintCount++
 	}
 
+	if hints.Channel != "" {
+		hintCount++
+	}
+
+	if hints.Severity != "" {
+		hintCount++
+	}
+
 	if hintCount == 0 && !requireNearby {
 		return 0, matched, contributions, missedHints
 	}
@@ -233,6 +241,96 @@ func CalculateScore(
 		}
 	}
 
+	// CHANNEL
+
+	if hints.Channel != "" {
+
+		matchType, multiplier := MatchExact(
+			event.Channel,
+			hints.Channel,
+		)
+
+		points := weight * multiplier
+
+		contributions = append(
+			contributions,
+			domain.Contribution{
+				Hint:    "channel",
+				Type:    string(matchType),
+				Value:   event.Channel,
+				Query:   hints.Channel,
+				Points:  points,
+				Matched: matchType != None,
+				Reason:  string(matchType) + " channel match",
+			},
+		)
+
+		if matchType != None {
+
+			score += points
+
+			matched = append(
+				matched,
+				"channel "+string(matchType),
+			)
+
+		} else {
+
+			missedHints = append(
+				missedHints,
+				domain.MissedHint{
+					Hint:   "channel",
+					Reason: "value does not match",
+				},
+			)
+		}
+	}
+
+	// SEVERITY
+
+	if hints.Severity != "" {
+
+		matchType, multiplier := MatchExact(
+			event.Severity,
+			hints.Severity,
+		)
+
+		points := weight * multiplier
+
+		contributions = append(
+			contributions,
+			domain.Contribution{
+				Hint:    "severity",
+				Type:    string(matchType),
+				Value:   event.Severity,
+				Query:   hints.Severity,
+				Points:  points,
+				Matched: matchType != None,
+				Reason:  string(matchType) + " severity match",
+			},
+		)
+
+		if matchType != None {
+
+			score += points
+
+			matched = append(
+				matched,
+				"severity "+string(matchType),
+			)
+
+		} else {
+
+			missedHints = append(
+				missedHints,
+				domain.MissedHint{
+					Hint:   "severity",
+					Reason: "value does not match",
+				},
+			)
+		}
+	}
+
 	// NEARBY
 
 	if len(nearby) > 0 {
@@ -245,7 +343,13 @@ func CalculateScore(
 
 		points := 10.0
 
-		score += points
+		if score+points > 100 {
+			points = 100 - score
+		}
+
+		if points > 0 {
+			score += points
+		}
 
 		contributions = append(
 			contributions,
@@ -254,7 +358,7 @@ func CalculateScore(
 				Type:    "context",
 				Value:   strings.Join(values, ","),
 				Query:   "required nearby",
-				Points:  points,
+				Points:  10,
 				Matched: true,
 				Reason:  "nearby events found",
 			},

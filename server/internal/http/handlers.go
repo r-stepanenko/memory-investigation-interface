@@ -86,18 +86,6 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(req.Context.RequireNearby) == 0 &&
-		(req.Context.Before != "" || req.Context.After != "") {
-
-		WriteError(
-			w,
-			http.StatusBadRequest,
-			"INVALID_CONTEXT",
-			"context.before/context.after require require_nearby",
-		)
-		return
-	}
-
 	var (
 		before  time.Duration
 		after   time.Duration
@@ -105,8 +93,6 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if len(req.Context.RequireNearby) > 0 {
-
-		var err error
 
 		for _, rule := range req.Context.RequireNearby {
 
@@ -119,51 +105,33 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 				)
 				return
 			}
-		}
 
-		before, err = search.ParseTolerance(
-			req.Context.Before,
-		)
+			duration, err := search.ParseTolerance(rule.Within)
 
-		if err != nil {
-			WriteError(
-				w,
-				http.StatusBadRequest,
-				"INVALID_DURATION",
-				"context.before must be duration",
-			)
-			return
-		}
+			if err != nil {
+				WriteError(
+					w,
+					http.StatusBadRequest,
+					"INVALID_DURATION",
+					"nearby.within must be duration",
+				)
+				return
+			}
 
-		after, err = search.ParseTolerance(
-			req.Context.After,
-		)
+			if duration <= 0 {
+				WriteError(
+					w,
+					http.StatusBadRequest,
+					"INVALID_CONTEXT",
+					"nearby duration must be positive",
+				)
+				return
+			}
 
-		if err != nil {
-			WriteError(
-				w,
-				http.StatusBadRequest,
-				"INVALID_DURATION",
-				"context.after must be duration",
-			)
-			return
-		}
+			before = duration
+			after = duration
 
-		if before <= 0 || after <= 0 {
-			WriteError(
-				w,
-				http.StatusBadRequest,
-				"INVALID_CONTEXT",
-				"context durations must be positive",
-			)
-			return
-		}
-
-		for _, rule := range req.Context.RequireNearby {
-			actions = append(
-				actions,
-				rule.Action,
-			)
+			actions = append(actions, rule.Action)
 		}
 	}
 

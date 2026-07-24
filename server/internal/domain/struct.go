@@ -20,10 +20,13 @@ type SearchHints struct {
 	FileName        string `json:"file_name"`
 	Action          string `json:"action"`
 	DestinationType string `json:"destination_type"`
+	Channel         string `json:"channel"`
+	Severity        string `json:"severity"`
 }
 
 type NearbyRule struct {
 	Action string `json:"action"`
+	Within string `json:"within"`
 }
 
 // контекст поиска

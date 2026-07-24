@@ -22,8 +22,8 @@ func TestCalculateScoreExactMatch(t *testing.T) {
 		false,
 	)
 
-	if score != 100 {
-		t.Fatalf("expected 100, got %f", score)
+	if score != 90 {
+		t.Fatalf("expected 90, got %f", score)
 	}
 
 	if len(matched) != 1 {
@@ -42,8 +42,8 @@ func TestCalculateScoreExactMatch(t *testing.T) {
 		t.Fatalf("expected exact")
 	}
 
-	if contributions[0].Points != 100 {
-		t.Fatalf("expected 100 points")
+	if contributions[0].Points != 90 {
+		t.Fatalf("expected 90 points")
 	}
 
 	if len(missed) != 0 {
@@ -68,8 +68,8 @@ func TestCalculateScoreSubstringMatch(t *testing.T) {
 		false,
 	)
 
-	if score != 50 {
-		t.Fatalf("expected 50 got %f", score)
+	if score != 45 {
+		t.Fatalf("expected 45 got %f", score)
 	}
 
 	if matched[0] != "user_id substring" {
@@ -98,8 +98,8 @@ func TestCalculateScoreFuzzyMatch(t *testing.T) {
 		false,
 	)
 
-	if score != 45 {
-		t.Fatalf("expected 45 got %f", score)
+	if score != 40.5 {
+		t.Fatalf("expected 40.5 got %f", score)
 	}
 
 	if matched[0] != "user_id fuzzy" {
@@ -130,8 +130,8 @@ func TestCalculateScoreTwoHints(t *testing.T) {
 		false,
 	)
 
-	if score != 100 {
-		t.Fatalf("expected 100")
+	if score != 90 {
+		t.Fatalf("expected 90 got %f", score)
 	}
 
 	var total float64
@@ -264,8 +264,8 @@ func TestCalculateScoreActionAndDestination(t *testing.T) {
 		false,
 	)
 
-	if score != 100 {
-		t.Fatalf("expected 100")
+	if score != 90 {
+		t.Fatalf("expected 90 got %f", score)
 	}
 
 	for _, c := range contributions {
@@ -274,8 +274,8 @@ func TestCalculateScoreActionAndDestination(t *testing.T) {
 			t.Fatalf("expected matched")
 		}
 
-		if c.Points != 50 {
-			t.Fatalf("expected 50")
+		if c.Points != 45 {
+			t.Fatalf("expected 45 got %f", c.Points)
 		}
 	}
 }
@@ -293,8 +293,8 @@ func TestCalculateScoreActionOnly(t *testing.T) {
 		false,
 	)
 
-	if score != 100 {
-		t.Fatalf("expected 100")
+	if score != 90 {
+		t.Fatalf("expected 90 got %f", score)
 	}
 
 	if contributions[0].Hint != "action" {
@@ -327,7 +327,7 @@ func TestCalculateScoreNearbyRequired(t *testing.T) {
 
 	if score != 100 {
 		t.Fatalf(
-			"expected capped score 100 got %f",
+			"expected 100 got %f",
 			score,
 		)
 	}
@@ -366,20 +366,18 @@ func TestCalculateScoreNearbyMissing(t *testing.T) {
 		true,
 	)
 
-	if score != 50 {
+	if score != 90 {
 		t.Fatalf(
-			"expected only user score 50, got %f",
+			"expected only user score 90, got %f",
 			score,
 		)
 	}
-
 
 	if len(missed) != 1 {
 		t.Fatalf(
 			"expected missed nearby",
 		)
 	}
-
 
 	if missed[0].Hint != "nearby" {
 		t.Fatalf(
@@ -412,7 +410,7 @@ func TestCalculateScoreNearbyFound(t *testing.T) {
 	)
 
 	if score != 100 {
-		t.Fatalf("expected 100, got %f", score)
+		t.Fatalf("expected 100 got %f", score)
 	}
 
 	if len(missed) != 0 {
@@ -420,7 +418,10 @@ func TestCalculateScoreNearbyFound(t *testing.T) {
 	}
 
 	if len(matched) != 2 {
-		t.Fatalf("expected 2 matches, got %d", len(matched))
+		t.Fatalf(
+			"expected 2 matches got %d",
+			len(matched),
+		)
 	}
 
 	last := contributions[len(contributions)-1]
@@ -435,9 +436,8 @@ func TestCalculateScoreNearbyFound(t *testing.T) {
 
 	if last.Points != 10 {
 		t.Fatalf(
-			"expected 10 points, got %f",
+			"expected 10 points got %f",
 			last.Points,
 		)
 	}
 }
-

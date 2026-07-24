@@ -14,7 +14,7 @@ function App() {
   const [destinationType, setDestinationType] = useState("");
   const [events, setEvents] = useState<any[]>([]);
   const [message, setMessage] = useState("");
-  const [datasets, setDatasets] = useState<string[]>([]);
+  const [datasets, setDatasets] = useState<any[]>([]);
   const [dataset, setDataset] = useState("");
   const [searchId, setSearchId] = useState("");
   const [selectedEventId, setSelectedEventId] = useState("");
@@ -23,6 +23,16 @@ function App() {
   const [explain, setExplain] = useState<any>(null);
   const [selectedExplainId, setSelectedExplainId] = useState("");
   const [isMockMode, setIsMockMode] = useState(false);
+  const [nearbyAction, setNearbyAction] = useState("");
+  const [nearbyTolerance, setNearbyTolerance] = useState("");
+  const [timeAround, setTimeAround] = useState("");
+  const [timeTolerance, setTimeTolerance] = useState("");
+  const [limit, setLimit] = useState("");
+  const [minScore, setMinScore] = useState("");
+  const [channel, setChannel] = useState("");
+  const [severity, setSeverity] = useState("");
+  const [before, setBefore] = useState("");
+  const [after, setAfter] = useState("");
 
   useEffect(() => {
     async function loadDatasets() {
@@ -31,18 +41,22 @@ function App() {
           "http://localhost:8080/api/datasets"
         );
 
-        setDatasets(res.data);
-        if (res.data.length > 0) {
-          setDataset(res.data[0]);
+        const formattedDatasets = res.data;
+
+        setDatasets(formattedDatasets);
+
+        if (formattedDatasets.length > 0) {
+          setDataset(formattedDatasets[0].id);
         }
+
       } catch (error) {
 
         console.log("Backend недоступен, включен mock");
 
         setIsMockMode(true);
         setDatasets(mockDatasets);
-        setDataset(mockDatasets[0]);
-        setMessage("Backend недоступен. Используется mock-режим");
+        setDataset(mockDatasets[0].id);
+        setMessage("");
       }
 
     }
@@ -54,9 +68,8 @@ function App() {
     setLoadingContext(true);
     try {
       if (isMockMode) {
-        setContext(
-          mockContext[eventId]
-        );
+        setContext(mockContext[eventId]);
+        setLoadingContext(false);
         return;
       }
 
@@ -80,23 +93,126 @@ function App() {
     setEvents([]);
     setExplain(null);
     setSelectedExplainId("");
+
     setMessage(
       "Backend недоступен. Используется mock-режим"
     );
+
+    if (!nearbyAction && nearbyTolerance) {
+      setMessage("Укажите Nearby action");
+      return;
+    }
+
+    if (nearbyAction && !nearbyTolerance) {
+      setMessage("Укажите Nearby tolerance");
+      return;
+    }
+
+    if (!timeAround && timeTolerance) {
+      setMessage("Укажите примерное время");
+      return;
+    }
+
+    if (timeAround && !timeTolerance) {
+      setMessage("Укажите tolerance времени");
+      return;
+    }
+
+    const durationRegex = /^\d+[smhd]$/;
+
+    if (timeAround && isNaN(new Date(timeAround).getTime())) {
+      setMessage("Некорректная дата");
+      return;
+    }
+
+    if (limit && (isNaN(Number(limit)) || Number(limit) <= 0)) {
+      setMessage("Limit должен быть положительным числом");
+      return;
+    }
+
+    if ((before && !after) || (!before && after)) {
+      setMessage("Before и After должны быть указаны вместе");
+      return;
+    }
+
+    if (
+      minScore &&
+      (
+        isNaN(Number(minScore)) ||
+        Number(minScore) < 0 ||
+        Number(minScore) > 100
+      )
+    ) {
+      setMessage("Min score должен быть числом от 0 до 100");
+      return;
+    }
+
+    if (timeTolerance && !durationRegex.test(timeTolerance)) {
+      setMessage("Time tolerance должен быть в формате 30m, 1h, 2d");
+      return;
+    }
+
+    if (nearbyTolerance && !durationRegex.test(nearbyTolerance)) {
+      setMessage("Nearby tolerance должен быть в формате 30m, 1h, 2d");
+      return;
+    }
+
+    if (before && !durationRegex.test(before)) {
+      setMessage("Before должен быть в формате 30m, 1h, 2d");
+      return;
+    }
+
+    if (after && !durationRegex.test(after)) {
+      setMessage("After должен быть в формате 30m, 1h, 2d");
+      return;
+    }
+
     try {
       const res = await axios.post(
         "http://localhost:8080/api/search",
         {
           dataset_id: dataset,
+
+          time: timeAround
+            ? {
+              around: new Date(timeAround).toISOString(),
+              tolerance: timeTolerance
+            }
+            : undefined,
+
           hints: {
             user_id: user,
             file_name: fileName,
             action: action,
-            destination_type: destinationType
+            destination_type: destinationType,
+            channel: channel,
+            severity: severity
+          },
+
+          context:
+            before || after || nearbyAction
+              ? {
+                before: before || undefined,
+                after: after || undefined,
+                require_nearby: nearbyAction
+                  ? [
+                    {
+                      action: nearbyAction,
+                      within: nearbyTolerance
+                    }
+                  ]
+                  : undefined,
+              }
+              : undefined,
+
+          scoring: {
+            limit: limit ? Number(limit) : undefined,
+            min_score: minScore ? Number(minScore) : undefined
           }
         }
       );
       setSearchId(res.data.search_id);
+
 
       const candidates = res.data.candidates ?? [];
 
@@ -110,6 +226,10 @@ function App() {
       }
 
     } catch (error: any) {
+      console.log("SEARCH ERROR:", error.response?.data);
+      console.log("STATUS:", error.response?.status);
+      console.log("ERROR:", error.message);
+
       setIsMockMode(true);
       setSearchId("mock-search-1");
       setEvents(mockSearch.candidates);
@@ -154,13 +274,39 @@ function App() {
 
   const requestPreview = {
     dataset_id: dataset,
-
+    time: timeAround
+      ? {
+        around: new Date(timeAround).toISOString(),
+        tolerance: timeTolerance
+      }
+      : undefined,
     hints: {
       user_id: user,
       file_name: fileName,
       action: action,
-      destination_type: destinationType
-    }
+      destination_type: destinationType,
+      channel: channel,
+      severity: severity
+    },
+    context:
+      before || after || nearbyAction
+        ? {
+          before: before || undefined,
+          after: after || undefined,
+          require_nearby: nearbyAction
+            ? [
+              {
+                action: nearbyAction,
+                within: nearbyTolerance
+              }
+            ]
+            : undefined,
+        }
+        : undefined,
+    scoring: {
+      limit: limit ? Number(limit) : undefined,
+      min_score: minScore ? Number(minScore) : undefined
+    },
   };
 
 
@@ -172,27 +318,96 @@ function App() {
         onChange={(e) => setDataset(e.target.value)}>
         {
           datasets.map(d => (
-            <option key={d}>
-              {d}
+            <option
+              key={d.id}
+              value={d.id}
+            >
+              {d.name}
             </option>
           ))
         }
       </select>
-
+      {
+        datasets
+          .filter(d => d.id === dataset)
+          .map(d => (
+            <div key={d.id}>
+              <p>
+                <b>Название:</b> {d.name}
+              </p>
+              <p>
+                <b>Размер:</b> {d.size} событий
+              </p>
+              <p>
+                <b>Период:</b> {d.period}
+              </p>
+              <p>
+                <b>Описание:</b> {d.description}
+              </p>
+            </div>
+          ))
+      }
       <h3>Поиск</h3>
+      <h4>Примерное время</h4>
+      <input
+        type="datetime-local"
+        value={timeAround}
+        onChange={(e) => setTimeAround(e.target.value)}
+      />
+      <input
+        placeholder="Time tolerance"
+        value={timeTolerance}
+        onChange={(e) => setTimeTolerance(e.target.value)}
+      /><br /><br />
+      <h4>Nearby</h4>
+      <input
+        placeholder="Nearby action"
+        value={nearbyAction}
+        onChange={(e) => setNearbyAction(e.target.value)}
+      />
 
+      <input
+        placeholder="Nearby tolerance"
+        value={nearbyTolerance}
+        onChange={(e) => setNearbyTolerance(e.target.value)}
+      /><br /><br />
+      <h4>Ограничение</h4>
+      <input
+        type="number"
+        placeholder="Limit"
+        value={limit}
+        onChange={(e) => setLimit(e.target.value)}
+      />
+      <input
+        type="number"
+        placeholder="Min score"
+        value={minScore}
+        onChange={(e) => setMinScore(e.target.value)}
+      /><br /><br />
+      <h4>Контекст</h4>
+      <input
+        placeholder="Before"
+        value={before}
+        onChange={(e) => setBefore(e.target.value)}
+      />
+      <input
+        placeholder="After"
+        value={after}
+        onChange={(e) => setAfter(e.target.value)}
+      />
+
+      <br /><br />
+      <h4>Критерии</h4>
       <input
         placeholder="User ID"
         value={user}
         onChange={(e) => setUser(e.target.value)}
       />
-
       <input
         placeholder="File name"
         value={fileName}
         onChange={(e) => setFileName(e.target.value)}
       />
-
       <input
         placeholder="Action"
         value={action}
@@ -204,9 +419,20 @@ function App() {
         value={destinationType}
         onChange={(e) => setDestinationType(e.target.value)}
       />
-
       <br /><br />
-
+      <p><b>channel</b> - через какой канал произошло действие<br />
+        <b>severity</b> - насколько событие подозрительное/опасное</p><br />
+      <input
+        placeholder="Channel"
+        value={channel}
+        onChange={(e) => setChannel(e.target.value)}
+      />
+      <input
+        placeholder="Severity"
+        value={severity}
+        onChange={(e) => setSeverity(e.target.value)}
+      />
+      <br /><br />
       <button onClick={search}>
         Поиск
       </button>

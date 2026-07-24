@@ -1,2 +1,3 @@
-{"event_id":"evt_32","timestamp":"2026-06-20T11:20:00Z","user_id":"ivan","action":"file_copy","file_name":"client_data.zip","destination_type":"usb"}
-{"event_id":"evt_33","timestamp":"2026-06-20T11:40:00Z","user_id":"ivan","action":"email_send","file_name":"client_data.zip","destination_type":"external"}
+{"event_id":"evt_31","timestamp":"2026-06-20T11:00:00Z","user_id":"ivan","action":"create_archive","file_name":"client_data.zip","destination_type":"internal","channel":"local","severity":"medium"}
+{"event_id":"evt_32","timestamp":"2026-06-20T11:20:00Z","user_id":"ivan","action":"file_copy","file_name":"client_data.zip","destination_type":"usb","channel":"usb","severity":"high"}
+{"event_id":"evt_33","timestamp":"2026-06-20T11:40:00Z","user_id":"ivan","action":"email_send","file_name":"client_data.zip","destination_type":"external","channel":"email","severity":"critical"}

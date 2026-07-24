@@ -1,5 +1,11 @@
 export const mockDatasets = [
-    "test-dataset"
+    {
+        id: "test-dataset",
+        name: "Test Dataset",
+        size: 3,
+        period: "2026-06-19 — 2026-06-20",
+        description: "Тестовый набор событий для демонстрации поиска"
+    }
 ];
 
 export const mockSearch = {
