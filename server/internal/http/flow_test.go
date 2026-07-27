@@ -33,7 +33,6 @@ func TestSearchContextExplainFlow(t *testing.T) {
 		Searches: make(map[string]domain.SearchResponse),
 	}
 
-
 	// SEARCH
 	reqBody := `
 	{
@@ -87,7 +86,6 @@ func TestSearchContextExplainFlow(t *testing.T) {
 		t.Fatalf("result failed: %d", rec.Code)
 	}
 
-
 	// CONTEXT
 	req = httptest.NewRequest(
 		http.MethodGet,
@@ -104,7 +102,6 @@ func TestSearchContextExplainFlow(t *testing.T) {
 		t.Fatalf("context failed: %d", rec.Code)
 	}
 
-
 	// EXPLAIN
 	req = httptest.NewRequest(
 		http.MethodGet,
@@ -116,7 +113,6 @@ func TestSearchContextExplainFlow(t *testing.T) {
 	rec = httptest.NewRecorder()
 
 	server.ExplainHandler(rec, req)
-
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("explain failed: %d", rec.Code)

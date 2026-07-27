@@ -26,7 +26,7 @@ type SearchHints struct {
 
 type NearbyRule struct {
 	Action string `json:"action"`
-	Within string `json:"within"`
+	Within string `json:"within,omitempty"`
 }
 
 // контекст поиска
@@ -58,9 +58,10 @@ type SearchRequest struct {
 // один кандидат
 type SearchResult struct {
 	Score         float64        `json:"score"`
+	Summary       string         `json:"summary"`
 	MatchedHints  []string       `json:"matched_hints"`
-	Contributions []Contribution `json:"-"`
-	MissedHints   []MissedHint   `json:"-"`
+	Contributions []Contribution `json:"contributions"`
+	MissedHints   []MissedHint   `json:"missed_hints,omitempty"`
 	Event         Event          `json:"event"`
 }
 
@@ -71,6 +72,7 @@ type SearchResponse struct {
 	DatasetID       string         `json:"dataset_id"`
 	TotalCandidates int            `json:"total_candidates"`
 	Candidates      []SearchResult `json:"candidates"`
+	TotalEvents     int            `json:"total_events"`
 }
 
 // контекст события

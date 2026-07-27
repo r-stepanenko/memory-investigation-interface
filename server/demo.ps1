@@ -10,15 +10,15 @@ $response = Invoke-RestMethod `
   "hints":{
     "user_id":"ivan"
   },
-  "context":{
-    "before":"30m",
-    "after":"30m",
-    "require_nearby":[
-      {
-        "action":"file_copy"
-      }
-    ]
+ "context":{
+ "before":"30m",
+ "after":"30m",
+ "require_nearby":[
+  {
+    "action":"email_send"
   }
+ ]
+}
 }
 '
 

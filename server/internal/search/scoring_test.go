@@ -359,11 +359,11 @@ func TestCalculateScoreNearbyMissing(t *testing.T) {
 		UserID: "ivan",
 	}
 
-	score, _, _, missed := CalculateScore(
+	score, _, contributions, missed := CalculateScore(
 		event,
 		hints,
 		nil,
-		true,
+		false,
 	)
 
 	if score != 90 {
@@ -373,15 +373,15 @@ func TestCalculateScoreNearbyMissing(t *testing.T) {
 		)
 	}
 
-	if len(missed) != 1 {
+	if len(contributions) != 1 {
 		t.Fatalf(
-			"expected missed nearby",
+			"expected only user contribution",
 		)
 	}
 
-	if missed[0].Hint != "nearby" {
+	if len(missed) != 0 {
 		t.Fatalf(
-			"expected nearby missed",
+			"expected no missed hints",
 		)
 	}
 }

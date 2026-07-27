@@ -2,6 +2,7 @@ package search
 
 import (
 	"event-memory-search-api/internal/domain"
+	"math"
 	"strings"
 )
 
@@ -9,7 +10,7 @@ func CalculateScore(
 	event domain.Event,
 	hints domain.SearchHints,
 	nearby []domain.Event,
-	requireNearby bool,
+	nearbyMatched bool,
 ) (
 	float64,
 	[]string,
@@ -51,14 +52,14 @@ func CalculateScore(
 		hintCount++
 	}
 
-	if hintCount == 0 && !requireNearby {
+	if hintCount == 0 && !nearbyMatched {
 		return 0, matched, contributions, missedHints
 	}
 
 	weight := 0.0
 
 	if hintCount > 0 {
-		weight = 100 / float64(hintCount)
+		weight = 90 / float64(hintCount)
 	}
 
 	// USER_ID
@@ -333,12 +334,16 @@ func CalculateScore(
 
 	// NEARBY
 
-	if len(nearby) > 0 {
+	if nearbyMatched {
 
 		values := make([]string, 0)
+		uniqueActions := make(map[string]bool)
 
 		for _, e := range nearby {
-			values = append(values, e.Action)
+			if !uniqueActions[e.Action] {
+				values = append(values, e.Action)
+				uniqueActions[e.Action] = true
+			}
 		}
 
 		points := 10.0
@@ -358,7 +363,7 @@ func CalculateScore(
 				Type:    "context",
 				Value:   strings.Join(values, ","),
 				Query:   "required nearby",
-				Points:  10,
+				Points:  points,
 				Matched: true,
 				Reason:  "nearby events found",
 			},
@@ -368,22 +373,9 @@ func CalculateScore(
 			matched,
 			"nearby event found",
 		)
-
-	} else if requireNearby {
-
-		missedHints = append(
-			missedHints,
-			domain.MissedHint{
-				Hint:   "nearby",
-				Reason: "required nearby event not found",
-			},
-		)
-
 	}
 
-	if score > 100 {
-		score = 100
-	}
+	score = math.Min(score, 100)
 
 	return score, matched, contributions, missedHints
 }

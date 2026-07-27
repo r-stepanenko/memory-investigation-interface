@@ -47,6 +47,7 @@ func main() {
 	nethttp.HandleFunc("/api/datasets", server.DatasetsHandler)
 	nethttp.HandleFunc("/api/search/", server.SearchRouter)
 	nethttp.HandleFunc("/api/events/", server.ContextHandler)
+	nethttp.HandleFunc("/api/datasets/", server.DatasetFiltersHandler)
 
 	log.Println("Starting server on :8080")
 	httpServer := &nethttp.Server{
