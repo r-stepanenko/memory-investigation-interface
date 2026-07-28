@@ -8,9 +8,10 @@ import (
 
 func TestContextHandler(t *testing.T) {
 	server := newTestServer()
+
 	req := httptest.NewRequest(
 		http.MethodGet,
-		"/api/events/evt_1/context",
+		"/api/events/evt_1/context?dataset=control",
 		nil,
 	)
 
@@ -29,9 +30,10 @@ func TestContextHandler(t *testing.T) {
 
 func TestContextHandlerNotFound(t *testing.T) {
 	server := newTestServer()
+
 	req := httptest.NewRequest(
 		http.MethodGet,
-		"/api/events/unknown/context",
+		"/api/events/unknown/context?dataset=control",
 		nil,
 	)
 
@@ -50,18 +52,44 @@ func TestContextHandlerNotFound(t *testing.T) {
 
 func TestContextHandlerMethodNotAllowed(t *testing.T) {
 	server := newTestServer()
+
 	req := httptest.NewRequest(
 		http.MethodPost,
-		"/api/events/evt_1/context",
+		"/api/events/evt_1/context?dataset=control",
 		nil,
 	)
+
 	rec := httptest.NewRecorder()
+
 	server.ContextHandler(rec, req)
 
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf(
 			"expected %d got %d",
 			http.StatusMethodNotAllowed,
+			rec.Code,
+		)
+	}
+}
+
+func TestContextHandlerCustomWindow(t *testing.T) {
+
+	server := newTestServer()
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/events/evt_1/context?dataset=control&before=1h&after=10m",
+		nil,
+	)
+
+	rec := httptest.NewRecorder()
+
+	server.ContextHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf(
+			"expected %d got %d",
+			http.StatusOK,
 			rec.Code,
 		)
 	}

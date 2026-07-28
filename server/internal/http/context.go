@@ -2,11 +2,12 @@ package http
 
 import (
 	"encoding/json"
-	
+
 	"net/http"
 	"strings"
-	
+
 	"event-memory-search-api/internal/domain"
+	"sort"
 	"time"
 )
 
@@ -60,7 +61,18 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	events := s.Datasets["control"]
+	datasetID := r.URL.Query().Get("dataset")
+
+	events, ok := s.Datasets[datasetID]
+	if !ok {
+		WriteError(
+			w,
+			http.StatusNotFound,
+			"DATASET_NOT_FOUND",
+			"dataset not found",
+		)
+		return
+	}
 
 	before := []domain.Event{}
 	after := []domain.Event{}
@@ -80,9 +92,41 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// временные окна
+	// временные окна из запроса
 	beforeWindow := 30 * time.Minute
 	afterWindow := 30 * time.Minute
+
+	if value := r.URL.Query().Get("before"); value != "" {
+		window, err := time.ParseDuration(value)
+
+		if err != nil {
+			WriteError(
+				w,
+				http.StatusBadRequest,
+				"INVALID_BEFORE_WINDOW",
+				"invalid before duration",
+			)
+			return
+		}
+
+		beforeWindow = window
+	}
+
+	if value := r.URL.Query().Get("after"); value != "" {
+		window, err := time.ParseDuration(value)
+
+		if err != nil {
+			WriteError(
+				w,
+				http.StatusBadRequest,
+				"INVALID_AFTER_WINDOW",
+				"invalid after duration",
+			)
+			return
+		}
+
+		afterWindow = window
+	}
 
 	for _, e := range events {
 
@@ -91,10 +135,6 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if e.UserID != event.UserID {
-			continue
-		}
-
-		if e.FileName != event.FileName {
 			continue
 		}
 
@@ -127,6 +167,14 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
+	sort.Slice(before, func(i, j int) bool {
+		return before[i].Timestamp < before[j].Timestamp
+	})
+
+	sort.Slice(after, func(i, j int) bool {
+		return after[i].Timestamp < after[j].Timestamp
+	})
 
 	response := domain.EventContext{
 		Event:  event,

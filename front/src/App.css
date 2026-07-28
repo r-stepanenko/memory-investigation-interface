@@ -136,3 +136,7 @@
 .timeline-item.after {
   opacity: .8;
 }
+
+.error-box {
+  color: #d93025;
+}

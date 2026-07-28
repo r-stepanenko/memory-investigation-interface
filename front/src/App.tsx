@@ -1,12 +1,28 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+
 import {
   mockSearch,
-  mockExplain,
-  mockDatasets,
-  mockContext
+  mockContext,
+  mockDatasets
 } from "./fixtures/mock";
+
+import {
+  search as searchRequest,
+  getDatasets,
+  getExplain as fetchExplain,
+} from "./services/searchService";
+
+import { API_URL, USE_MOCK } from "./config";
+
 import "./App.css"
+
+type SearchHistoryItem = {
+  id: string;
+  name: string;
+  created: string;
+  request: any;
+};
 
 function App() {
   const [user, setUser] = useState("");
@@ -32,8 +48,9 @@ function App() {
   const [loadingContext, setLoadingContext] = useState(false);
   const [explain, setExplain] = useState<any>(null);
   const [selectedExplainId, setSelectedExplainId] = useState("");
-  const [isMockMode, setIsMockMode] = useState(false);
+  const [isMockMode, setIsMockMode] = useState(USE_MOCK);
   const [nearbyAction, setNearbyAction] = useState("");
+  const [nearbyTolerance, setNearbyTolerance] = useState("");
   const [timeAround, setTimeAround] = useState("");
   const [timeTolerance, setTimeTolerance] = useState("");
   const [limit, setLimit] = useState("");
@@ -50,30 +67,41 @@ function App() {
   const [sortOrder, setSortOrder] = useState("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+  const [selectedCandidate, setSelectedCandidate] = useState("");
+  const [history, setHistory] = useState<SearchHistoryItem[]>([]);
+  const [searchName, setSearchName] = useState("");
+  const [repeatPending, setRepeatPending] = useState(false);
+  const [contexts, setContexts] = useState<Record<string, any>>({});
+
 
   useEffect(() => {
     async function loadDatasets() {
       try {
-        const res = await axios.get(
-          "http://localhost:8080/api/datasets"
-        );
-        console.log(res.data);
-        const formattedDatasets = res.data;
+        const data = await getDatasets();
+        console.log(data);
 
-        setDatasets(formattedDatasets);
+        setDatasets(data);
 
-        if (formattedDatasets.length > 0) {
-          setDataset(formattedDatasets[0].id);
+        if (data.length > 0) {
+          setDataset(data[0].id);
+        }
+      } catch (error: any) {
+        if (USE_MOCK) {
+          setDatasets(mockDatasets);
+
+          if (mockDatasets.length > 0) {
+            setDataset(mockDatasets[0].id);
+          }
+
+          return;
         }
 
-      } catch (error) {
+        if (error.code === "ERR_NETWORK") {
+          setMessage("Backend недоступен.");
+          return;
+        }
 
-        console.log("Backend недоступен, включен mock");
-
-        setIsMockMode(true);
-        setDatasets(mockDatasets);
-        setDataset(mockDatasets[0].id);
-        setMessage("");
+        setMessage(error.response?.data?.message || "Ошибка загрузки datasets");
       }
 
     }
@@ -82,56 +110,222 @@ function App() {
   }, []);
 
   useEffect(() => {
-    async function loadDatasetEvents() {
+    async function loadDatasetFilters() {
       try {
-        const res = await axios.get(
-          `http://localhost:8080/api/datasets/${dataset}/filters`
-        );
+        const res = await axios.get(`${API_URL}/api/datasets/${dataset}/filters`);
         setFilters(res.data);
-      } catch (error) {
-        console.log("Не удалось загрузить события Dataset");
+      } catch (error: any) {
+        if (error.code === "ERR_NETWORK") {
+          setMessage("Backend недоступен.");
+          return;
+        }
+
+        setMessage(
+          error.response?.data?.message ??
+          "Ошибка загрузки фильтров"
+        );
       }
     }
     if (dataset) {
-      loadDatasetEvents();
+      loadDatasetFilters();
     }
   }, [dataset]);
 
+  useEffect(() => {
+    const saved = localStorage.getItem("search-history");
+
+    if (saved) {
+      setHistory(JSON.parse(saved));
+    }
+  }, []);
+
+  function enableMockMode() {
+    setIsMockMode(true);
+
+    setDatasets(mockDatasets);
+    setDataset(mockDatasets[0].id);
+
+    setSearchId("mock-search-1");
+    setEvents(mockSearch.candidates);
+
+    setMessage("");
+  }
+
+  function saveSearch(request: any) {
+    const item: SearchHistoryItem = {
+      id: crypto.randomUUID(),
+      name:
+        searchName.trim() ||
+        `Поиск ${new Date().toLocaleString()}`,
+      created: new Date().toISOString(),
+      request,
+    };
+
+    const updated = [item, ...history].slice(0, 10);
+
+    setHistory(updated);
+
+    localStorage.setItem(
+      "search-history",
+      JSON.stringify(updated)
+    );
+
+    setSearchName("");
+  }
+
+  function deleteSearch(id: string) {
+    const updated = history.filter(
+      item => item.id !== id
+    );
+
+    setHistory(updated);
+
+    localStorage.setItem(
+      "search-history",
+      JSON.stringify(updated)
+    );
+  }
+
   async function getContext(eventId: string) {
     setLoadingContext(true);
+
     try {
       if (isMockMode) {
         setContext(mockContext[eventId]);
-        setLoadingContext(false);
         return;
       }
-
-      const res = await axios.get(
-        `http://localhost:8080/api/events/${eventId}/context`
-      );
-
-      setContext(res.data);
-    }
-    catch (error) {
-      console.log(error);
-
-      setContext(null);
+      setContext(await loadContext(eventId));
     }
     finally {
       setLoadingContext(false);
     }
   }
 
+  async function loadContext(eventId: string) {
+
+    if (contexts[eventId]) {
+      return contexts[eventId];
+    }
+
+    const res =
+      await axios.get(
+        `${API_URL}/api/events/${eventId}/context`
+      );
+
+    setContexts(prev => ({
+      ...prev,
+      [eventId]: res.data
+    }));
+
+    return res.data;
+  }
+
+  function isNearbyEvent(
+    current: any,
+    candidate: any,
+    toleranceMinutes: number
+  ) {
+    const currentTime = new Date(current.timestamp).getTime();
+    const candidateTime = new Date(candidate.timestamp).getTime();
+
+    const diff =
+      Math.abs(candidateTime - currentTime) / 60000;
+
+    return diff <= toleranceMinutes;
+  }
+
+  async function loadCompareContext(eventId: string) {
+    if (contexts[eventId]) {
+      return;
+    }
+
+    try {
+      const res = await axios.get(`${API_URL}/api/events/${eventId}/context`,
+        {
+          params: {
+            dataset,
+          },
+        }
+      )
+
+      const ctx = res.data;
+
+
+      const nearbyEvent =
+        [
+          ...(ctx.before || []),
+          ...(ctx.after || [])
+        ]
+          .find((e: any) =>
+            e.action === nearbyAction &&
+            isNearbyEvent(
+              ctx.event,
+              e,
+              parseDuration(nearbyTolerance)
+            )
+          );
+
+
+      const nearbyFound = Boolean(nearbyEvent);
+
+      setContexts(prev => ({
+        ...prev,
+        [eventId]: {
+          ...ctx,
+          nearbyFound,
+          nearbyEvent
+        }
+      }));
+
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    resultMinScore,
+    resultAction,
+    resultUser,
+    resultDestination,
+    sortBy,
+    sortOrder
+  ]);
+
+  useEffect(() => {
+    if (repeatPending && dataset) {
+      search();
+      setRepeatPending(false);
+    }
+  }, [repeatPending, dataset]);
+
+  function parseDuration(value: string) {
+    const match = value.match(/^(\d+)([smhd])$/);
+
+    if (!match) return 0;
+
+    const number = Number(match[1]);
+
+    switch (match[2]) {
+      case "m": return number;
+      case "h": return number * 60;
+      case "d": return number * 60 * 24;
+      case "s": return number / 60;
+    }
+
+    return 0;
+  }
+
   async function search() {
+    setCompareList([]);
+    setContexts({});
+    setSelectedCandidate("");
     setEvents([]);
     setExplain(null);
     setSelectedExplainId("");
     setCurrentPage(1);
-
-    setMessage(
-      "Backend недоступен. Используется mock-режим"
-    );
-
+    setMessage("");
     if (!timeAround && timeTolerance) {
       setMessage("Укажите примерное время");
       return;
@@ -187,25 +381,74 @@ function App() {
     }
 
     try {
-      const res = await axios.post(
-        "http://localhost:8080/api/search",
-        {
+      const request = {
+        dataset_id: dataset,
+
+        time: timeAround
+          ? {
+            around: new Date(timeAround).toISOString(),
+            tolerance: timeTolerance,
+          }
+          : undefined,
+
+        hints: {
+          user_id: user,
+          file_name: fileName,
+          action,
+          destination_type: destinationType,
+          channel,
+          severity,
+        },
+
+        context:
+          before || after || nearbyAction
+            ? {
+              before: before || undefined,
+              after: after || undefined,
+              require_nearby: nearbyAction
+                ? [
+                  {
+                    action: nearbyAction,
+                    within: nearbyTolerance || undefined,
+                  },
+                ]
+                : undefined,
+            }
+            : undefined,
+
+        scoring: {
+          limit: limit ? Number(limit) : undefined,
+          min_score: minScore ? Number(minScore) : undefined,
+        },
+      };
+      const res = await searchRequest(request);
+      setSearchId(res.search_id);
+      const candidates = res.candidates ?? [];
+
+      if (candidates.length === 0) {
+        setMessage("Ничего не найдено");
+
+      }
+      else {
+        setMessage("");
+        setEvents(candidates);
+        saveSearch({
           dataset_id: dataset,
 
           time: timeAround
             ? {
               around: new Date(timeAround).toISOString(),
-              tolerance: timeTolerance
+              tolerance: timeTolerance,
             }
             : undefined,
 
           hints: {
             user_id: user,
             file_name: fileName,
-            action: action,
+            action,
             destination_type: destinationType,
-            channel: channel,
-            severity: severity
+            channel,
+            severity,
           },
 
           context:
@@ -216,7 +459,8 @@ function App() {
                 require_nearby: nearbyAction
                   ? [
                     {
-                      action: nearbyAction
+                      action: nearbyAction,
+                      within: nearbyTolerance || undefined
                     }
                   ]
                   : undefined,
@@ -225,33 +469,27 @@ function App() {
 
           scoring: {
             limit: limit ? Number(limit) : undefined,
-            min_score: minScore ? Number(minScore) : undefined
-          }
-        }
-      );
-      setSearchId(res.data.search_id);
-
-
-      const candidates = res.data.candidates ?? [];
-
-      if (candidates.length === 0) {
-        setMessage("Ничего не найдено");
-
-      }
-      else {
-        setMessage("");
-        setEvents(candidates);
+            min_score: minScore ? Number(minScore) : undefined,
+          },
+        });
         console.log(candidates);
       }
 
     } catch (error: any) {
-      console.log("SEARCH ERROR:", error.response?.data);
-      console.log("STATUS:", error.response?.status);
-      console.log("ERROR:", error.message);
+      console.log("SEARCH ERROR:", error);
 
-      setIsMockMode(true);
-      setSearchId("mock-search-1");
-      setEvents(mockSearch.candidates);
+      if (USE_MOCK) {
+        setSearchId("mock-search-1");
+        setEvents(mockSearch.candidates);
+        return;
+      }
+
+      if (error.code === "ERR_NETWORK") {
+        setMessage("Backend недоступен.");
+        return;
+      }
+
+      setMessage(error.response?.data?.message || "Ошибка выполнения поиска");
     }
   }
 
@@ -259,32 +497,30 @@ function App() {
     if (selectedExplainId === eventId) {
       setExplain(null);
       setSelectedExplainId("");
-
-      return;
-    }
-
-    if (isMockMode) {
-      setExplain(
-        mockExplain[eventId]
-      );
-      setSelectedExplainId(eventId);
-
       return;
     }
 
     try {
-      const res = await axios.get(
-        `http://localhost:8080/api/search/${searchId}/candidates/${eventId}/explain`
-
+      const data = await fetchExplain(
+        searchId,
+        eventId
       );
-      console.log("EXPLAIN RESPONSE:", res.data);
-      setExplain(res.data);
+
+      console.log("EXPLAIN RESPONSE:", data);
+
+      setExplain(data);
       setSelectedExplainId(eventId);
 
-    }
-    catch (error) {
-      console.log(error);
+    } catch (error: any) {
+      if (error.code === "ERR_NETWORK") {
+        setMessage("Backend недоступен");
+        return;
+      }
 
+      setMessage(
+        error.response?.data?.message ||
+        "Ошибка получения explain"
+      );
     }
   }
 
@@ -309,13 +545,15 @@ function App() {
         ? {
           before: before || undefined,
           after: after || undefined,
-          require_nearby: nearbyAction
-            ? [
-              {
-                action: nearbyAction
-              }
-            ]
-            : undefined,
+          require_nearby:
+            nearbyAction
+              ? [
+                {
+                  action: nearbyAction,
+                  within: nearbyTolerance || undefined
+                }
+              ]
+              : undefined,
         }
         : undefined,
     scoring: {
@@ -390,7 +628,7 @@ function App() {
 
   const matchedCount =
     explain?.contributions?.filter(
-      (c: any) => c.points > 0
+      (c: any) => c.matched
     ).length ?? 0;
 
   const timeline = context
@@ -411,6 +649,39 @@ function App() {
       })),
     ]
     : [];
+
+  function repeatSearch(item: SearchHistoryItem) {
+    const req = item.request;
+    setDataset(req.dataset_id ?? "");
+
+    setTimeAround(
+      req.time?.around
+        ? req.time.around.slice(0, 16)
+        : ""
+    );
+    setTimeTolerance(req.time?.tolerance ?? "");
+    setUser(req.hints?.user_id ?? "");
+    setFileName(req.hints?.file_name ?? "");
+    setAction(req.hints?.action ?? "");
+    setDestinationType(req.hints?.destination_type ?? "");
+    setChannel(req.hints?.channel ?? "");
+    setSeverity(req.hints?.severity ?? "");
+    setBefore(req.context?.before ?? "");
+    setAfter(req.context?.after ?? "");
+    setNearbyTolerance(req.context?.require_nearby?.[0]?.within ?? "");
+    setNearbyAction(req.context?.require_nearby?.[0]?.action ?? "");
+    setLimit(
+      req.scoring?.limit != null
+        ? String(req.scoring.limit)
+        : ""
+    );
+    setMinScore(
+      req.scoring?.min_score != null
+        ? String(req.scoring.min_score)
+        : ""
+    );
+    setRepeatPending(true);
+  }
 
   return (
     <div>
@@ -476,12 +747,13 @@ function App() {
       /><br /><br />
       <h4>Контекст</h4>
       <input
-        placeholder="Before"
+        placeholder="Before duration (например 30m)"
         value={before}
         onChange={(e) => setBefore(e.target.value)}
       />
+
       <input
-        placeholder="After"
+        placeholder="After duration (например 30m)"
         value={after}
         onChange={(e) => setAfter(e.target.value)}
       />
@@ -490,8 +762,13 @@ function App() {
       <input
         placeholder="Nearby action"
         value={nearbyAction}
-        onChange={(e) => setNearbyAction(e.target.value)}
-      /><br /><br />
+        onChange={(e) => setNearbyAction(e.target.value)} />
+      <input
+        placeholder="Nearby tolerance"
+        value={nearbyTolerance}
+        onChange={(e) => setNearbyTolerance(e.target.value)}
+      />
+      <br /><br />
       <h4>Критерии</h4>
       <input
         list="users"
@@ -569,6 +846,11 @@ function App() {
         ))}
       </datalist>
       <br /><br />
+      <input
+        placeholder="Название поиска (необязательно)"
+        value={searchName}
+        onChange={(e) => setSearchName(e.target.value)}
+      />
       <button onClick={search}>
         Поиск
       </button>
@@ -649,53 +931,254 @@ function App() {
 
       <pre>{JSON.stringify(requestPreview, null, 2)}</pre>
 
-      <p>{message}</p>
+      {
+        message && (
+          <div className="error-box">
+            <div>{message}</div>
+
+            {
+              message === "Backend недоступен." &&
+              !isMockMode && (
+                <button onClick={enableMockMode}>
+                  Перейти в mock режим
+                </button>
+              )
+            }
+          </div>
+        )
+      }
+      <h3>История поисков</h3>
+      {
+        history.length === 0
+          ? (
+            <p>История пуста</p>
+          )
+          : (
+            history.map(item => (
+              <div
+                key={item.id}
+                className="history-item"
+              >
+                <b>{item.name}</b>
+                <br />
+                {new Date(item.created).toLocaleString()}
+                <br /><br />
+                <button
+                  onClick={() => repeatSearch(item)}>
+                  Повторить запрос
+                </button>
+                <button
+                  onClick={() => deleteSearch(item.id)}>
+                  Удалить
+                </button>
+              </div>
+            ))
+          )
+      }
 
       <h3>Сравнение</h3>
-
       {
         compareList.length === 0
           ? (
             <p>Нет выбранных кандидатов</p>
           )
-          : (
+          : (<>
+            <p>
+              Выбранный кандидат:
+              <b>{" " + selectedCandidate || " нет"}</b>
+            </p>
             <table>
               <thead>
                 <tr>
-                  <th>Event ID</th>
-                  <th>User</th>
-                  <th>Action</th>
-                  <th>Score</th>
+                  <th>Поле</th>
+                  {
+                    compareList.map((c: any) => (
+                      <th key={c.event.event_id}>
+                        {c.event.event_id}
+                      </th>
+                    ))
+                  }
                   <th></th>
                 </tr>
               </thead>
+
               <tbody>
-                {
-                  compareList.map((c: any) => (
-                    <tr key={c.event.event_id}>
-                      <td>{c.event.event_id}</td>
-                      <td>{c.event.user_id}</td>
-                      <td>{c.event.action}</td>
-                      <td>{c.score.toFixed(2)}</td>
-                      <td>
+
+                <tr>
+                  <td>User</td>
+
+                  {
+                    compareList.map((c: any) => (
+                      <td key={c.event.event_id}>
+                        {c.event.user_id}
+                      </td>
+                    ))
+                  }
+                  <td></td>
+                </tr>
+
+                <tr>
+                  <td>Action</td>
+                  {
+                    compareList.map((c: any) => (
+                      <td key={c.event.event_id}>
+                        {c.event.action}
+                      </td>
+                    ))
+                  }
+                  <td></td>
+                </tr>
+
+                <tr>
+                  <td>File</td>
+                  {
+                    compareList.map((c: any) => (
+                      <td key={c.event.event_id}>
+                        {c.event.file_name}
+                      </td>
+                    ))
+                  }
+                  <td></td>
+                </tr>
+
+                <tr>
+                  <td>Destination</td>
+                  {
+                    compareList.map((c: any) => (
+                      <td key={c.event.event_id}>
+                        {c.event.destination_type}
+                      </td>
+                    ))
+                  }
+                  <td></td>
+                </tr>
+
+                <tr>
+                  <td>Score</td>
+                  {
+                    compareList.map((c: any) => (
+                      <td key={c.event.event_id}>
+                        {c.score.toFixed(2)}
+                      </td>
+                    ))
+                  }
+                  <td></td>
+                </tr>
+
+                <tr>
+                  <td>Nearby</td>
+                  {
+                    compareList.map((c: any) => (
+                      <td key={c.event.event_id}>
+                        {
+                          c.contributions.some(
+                            (x: any) => x.hint === "nearby" && x.matched
+                          )
+                            ? "✓"
+                            : "-"
+                        }
+                      </td>
+                    ))
+                  }
+                </tr>
+
+                <tr>
+                  <td>Действие</td>
+                  {
+                    compareList.map((c: any) => (
+                      <td key={c.event.event_id}>
                         <button
                           onClick={() =>
-                            setCompareList(
-                              compareList.filter(
-                                item => item.event.event_id !== c.event.event_id
-                              )
-                            )
+                            setSelectedCandidate(c.event.event_id)
                           }
                         >
+                          Выбрать
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const id = c.event.event_id;
+
+                            setCompareList(prev =>
+                              prev.filter(
+                                item => item.event.event_id !== id
+                              )
+                            );
+
+                            if (selectedCandidate === id) {
+                              setSelectedCandidate("");
+                            }
+
+                          }}>
                           Удалить
                         </button>
+
+                        {
+                          selectedCandidate === c.event.event_id &&
+                          (
+                            <div>
+                              + Выбран аналитиком
+                            </div>
+                          )
+                        }
                       </td>
-                    </tr>
-                  ))
-                }
+                    ))
+                  }
+                </tr>
               </tbody>
             </table>
-          )
+          </>)
+      }
+      <h4>Score contributions</h4>
+      {
+        compareList.map((c: any) => (
+          <div key={c.event.event_id}>
+            <h5>
+              {c.event.event_id}
+            </h5>
+
+            {
+              c.contributions
+                .filter((x: any) => x.points > 0)
+                .map((x: any, index: number) => (
+                  <p key={index}>
+                    {x.hint}: +{x.points}
+                  </p>
+                ))
+            }
+
+          </div>
+        ))
+      }
+      <h4>Контекст</h4>
+      {
+        compareList.map((c: any) => (
+
+          <div key={c.event.event_id}>
+
+            <button
+              onClick={() =>
+                loadCompareContext(c.event.event_id)
+              }
+            >
+              Показать контекст {c.event.event_id}
+            </button>
+
+            <pre>
+              {
+                contexts[c.event.event_id]
+                  ?
+                  JSON.stringify(
+                    contexts[c.event.event_id],
+                    null,
+                    2
+                  )
+                  :
+                  ""
+              }
+            </pre>
+          </div>
+        ))
       }
       <br />
       {
@@ -770,20 +1253,50 @@ function App() {
               <h4>Совпадения</h4>
 
               <div className="match-list">
-                {
-                  item.matched_hints.map((hint: string) => (
+                {item.matched_hints
+                  .filter((hint: string) => hint !== "nearby event found")
+                  .map((hint: string) => (
                     <div
                       key={hint}
                       className="match-tag">
                       {hint}
                     </div>
-                  ))
-                }
+                  ))}
               </div>
+
+              {
+                (() => {
+                  const nearbyContribution =
+                    item.contributions.find(
+                      (c: any) => c.hint === "nearby"
+                    );
+
+                  if (!nearbyContribution) {
+                    return null;
+                  }
+
+                  return nearbyContribution.matched
+                    ?
+                    (
+                      <p>✓ Найдено связанное событие
+                      </p>
+                    )
+                    :
+                    (
+                      <p>
+                        - Связанное событие не найдено
+                      </p>
+                    );
+
+                })()
+              }
+
               <p>
                 <b>Summary:</b> Совпадение найдено по{" "}
-                {item.matched_hints.length}{" "}
-                {item.matched_hints.length === 1 ? "критерию" : "критериям"}.
+                {
+                  item.contributions.filter((c: any) => c.matched).length
+                }{" "}
+                критериям.
               </p>
 
               <h4>Основные причины</h4>
@@ -844,8 +1357,13 @@ function App() {
                       )
                     ) return;
 
-                    setCompareList([
-                      ...compareList,
+                    if (compareList.length >= 3) {
+                      alert("Можно сравнить максимум 3 кандидата");
+                      return;
+                    }
+
+                    setCompareList(prev => [
+                      ...prev,
                       item,
                     ]);
 
