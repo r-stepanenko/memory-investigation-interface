@@ -9,6 +9,7 @@ import (
 
 	"event-memory-search-api/internal/domain"
 	myhttp "event-memory-search-api/internal/http"
+	"event-memory-search-api/internal/search"
 )
 
 func TestSearchAPIIntegration(t *testing.T) {
@@ -30,17 +31,21 @@ func TestSearchAPIIntegration(t *testing.T) {
 
 		Searches: make(map[string]domain.SearchResponse),
 
-		Events: map[string]domain.Event{
-			"evt_1": {
-				EventID: "evt_1",
-				UserID:  "ivan",
-				Action:  "file_copy",
-			},
-			"evt_2": {
-				EventID: "evt_2",
-				UserID:  "alex",
-				Action:  "login",
-			},
+		UserIndexes: map[string]*search.UserIndex{
+			"control": search.BuildUserIndex(
+				[]domain.Event{
+					{
+						EventID: "evt_1",
+						UserID:  "ivan",
+						Action:  "file_copy",
+					},
+					{
+						EventID: "evt_2",
+						UserID:  "alex",
+						Action:  "login",
+					},
+				},
+			),
 		},
 
 		EventIndex: map[string]int{

@@ -207,10 +207,14 @@ function App() {
       return contexts[eventId];
     }
 
-    const res =
-      await axios.get(
-        `${API_URL}/api/events/${eventId}/context`
-      );
+    const res = await axios.get(
+      `${API_URL}/api/events/${eventId}/context`,
+      {
+        params: {
+          dataset,
+        },
+      }
+    );
 
     setContexts(prev => ({
       ...prev,
@@ -240,7 +244,7 @@ function App() {
     }
 
     try {
-      const res = await axios.get(`${API_URL}/api/events/${eventId}/context`,
+      const res = await axios.get(`${API_URL}/api/events/${eventId}/context?dataset=${dataset}`,
         {
           params: {
             dataset,
@@ -472,7 +476,9 @@ function App() {
             min_score: minScore ? Number(minScore) : undefined,
           },
         });
-        console.log(candidates);
+        console.log(
+          JSON.stringify(candidates[0].event, null, 2)
+        );
       }
 
     } catch (error: any) {

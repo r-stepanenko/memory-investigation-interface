@@ -22,18 +22,23 @@ func TestSearchContextExplainFlow(t *testing.T) {
 				},
 			},
 		},
-		Events: map[string]domain.Event{
-			"evt_33": {
-				EventID:   "evt_33",
-				Timestamp: "2026-06-20T11:40:00Z",
-				UserID:    "ivan",
-				Action:    "email_send",
+
+		Events: map[string]map[string]domain.Event{
+			"control": {
+				"evt_33": {
+					EventID:   "evt_33",
+					Timestamp: "2026-06-20T11:40:00Z",
+					UserID:    "ivan",
+					Action:    "email_send",
+				},
 			},
 		},
+
 		Searches: make(map[string]domain.SearchResponse),
 	}
 
 	// SEARCH
+
 	reqBody := `
 	{
 		"dataset_id":"control",
@@ -71,6 +76,7 @@ func TestSearchContextExplainFlow(t *testing.T) {
 	}
 
 	// RESULT
+
 	req = httptest.NewRequest(
 		http.MethodGet,
 		"/api/search/"+searchResp.SearchID,
@@ -86,6 +92,7 @@ func TestSearchContextExplainFlow(t *testing.T) {
 	}
 
 	// CONTEXT
+
 	req = httptest.NewRequest(
 		http.MethodGet,
 		"/api/events/evt_33/context?dataset=control&before=30m&after=30m",
@@ -101,6 +108,7 @@ func TestSearchContextExplainFlow(t *testing.T) {
 	}
 
 	// EXPLAIN
+
 	req = httptest.NewRequest(
 		http.MethodGet,
 		"/api/search/"+searchResp.SearchID+
@@ -136,20 +144,27 @@ func TestExplainNearbyContribution(t *testing.T) {
 				},
 			},
 		},
-		Events: map[string]domain.Event{
-			"evt_1": {
-				EventID:   "evt_1",
-				Timestamp: "2026-06-20T11:00:00Z",
-				UserID:    "ivan",
-				Action:    "email_send",
-			},
-			"evt_2": {
-				EventID:   "evt_2",
-				Timestamp: "2026-06-20T11:05:00Z",
-				UserID:    "ivan",
-				Action:    "file_copy",
+
+		Events: map[string]map[string]domain.Event{
+
+			"control": {
+
+				"evt_1": {
+					EventID:   "evt_1",
+					Timestamp: "2026-06-20T11:00:00Z",
+					UserID:    "ivan",
+					Action:    "email_send",
+				},
+
+				"evt_2": {
+					EventID:   "evt_2",
+					Timestamp: "2026-06-20T11:05:00Z",
+					UserID:    "ivan",
+					Action:    "file_copy",
+				},
 			},
 		},
+
 		Searches: make(map[string]domain.SearchResponse),
 	}
 
@@ -201,6 +216,7 @@ func TestExplainNearbyContribution(t *testing.T) {
 	candidate := searchResp.Candidates[0]
 
 	if candidate.Score != 10 {
+
 		t.Fatalf(
 			"expected score 10 got %v",
 			candidate.Score,
@@ -237,6 +253,7 @@ func TestExplainNearbyContribution(t *testing.T) {
 	}
 
 	if explain.Score != candidate.Score {
+
 		t.Fatalf(
 			"score mismatch: search=%v explain=%v",
 			candidate.Score,
@@ -253,6 +270,7 @@ func TestExplainNearbyContribution(t *testing.T) {
 			nearbyFound = true
 
 			if contribution.Points != 10 {
+
 				t.Fatalf(
 					"expected nearby points 10 got %v",
 					contribution.Points,
@@ -260,6 +278,7 @@ func TestExplainNearbyContribution(t *testing.T) {
 			}
 
 			if !contribution.Matched {
+
 				t.Fatal(
 					"nearby contribution should be matched",
 				)
@@ -268,6 +287,7 @@ func TestExplainNearbyContribution(t *testing.T) {
 	}
 
 	if !nearbyFound {
+
 		t.Fatal(
 			"nearby contribution not found",
 		)

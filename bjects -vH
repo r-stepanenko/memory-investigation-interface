@@ -1,0 +1,11 @@
+[33mcommit 0f0cc8fb37d3d6bd15d158362931c2f3daab8853[m
+Author: xomimishka <sklyarovamilenav@gmail.com>
+Date:   Wed Jul 29 17:37:38 2026 +0300
+
+    Remove large generated datasets from git
+
+[33mcommit 69fc805ca85f1aac9ddf793ec36daea02586d358[m
+Author: xomimishka <sklyarovamilenav@gmail.com>
+Date:   Wed Jul 29 17:35:17 2026 +0300
+
+    Реализовала поиск через индекс, поддержку больших датасетов events100k.jsonl и events1m.jsonl, генерацию тестовых данных, benchmark-проверки производительности, frontend-тесты, Makefile, README и CLI-флаги

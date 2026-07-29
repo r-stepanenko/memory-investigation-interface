@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+
 	if len(os.Args) > 1 && os.Args[1] == "search" {
 		RunSearchCLI(os.Args[2:])
 		return
@@ -50,21 +51,37 @@ func main() {
 		log.Fatal(err)
 	}
 
-	eventMap := make(map[string]domain.Event)
+	eventMap := make(map[string]map[string]domain.Event)
+	eventMap["control"] = make(map[string]domain.Event)
+
+	for _, event := range events {
+		eventMap["control"][event.EventID] = event
+	}
+
+	eventMap["test"] = make(map[string]domain.Event)
+
+	for _, event := range testEvents {
+		eventMap["test"][event.EventID] = event
+	}
+
+	eventMap["large100k"] = make(map[string]domain.Event)
+
+	for _, event := range events100k {
+		eventMap["large100k"][event.EventID] = event
+	}
+
+	eventMap["large1m"] = make(map[string]domain.Event)
+
+	for _, event := range events1m {
+		eventMap["large1m"][event.EventID] = event
+	}
 	eventIndex := make(map[string]int)
 
-	allEvents := append(
-		append(
-			append(events, testEvents...),
-			events100k...,
-		),
-		events1m...,
-	)
-
-	for i, event := range allEvents {
-		eventMap[event.EventID] = event
+	for i, event := range events {
 		eventIndex[event.EventID] = i
 	}
+
+	log.Printf("evt_32 in global map: %+v", eventMap["evt_32"])
 
 	controlIndex := search.BuildUserIndex(events)
 	testIndex := search.BuildUserIndex(testEvents)

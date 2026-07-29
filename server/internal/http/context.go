@@ -2,13 +2,12 @@ package http
 
 import (
 	"encoding/json"
-
 	"net/http"
+	"sort"
 	"strings"
+	"time"
 
 	"event-memory-search-api/internal/domain"
-	"sort"
-	"time"
 )
 
 func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
@@ -27,8 +26,6 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-
-	// /api/events/{event_id}/context
 
 	path := strings.TrimPrefix(
 		r.URL.Path,
@@ -49,27 +46,18 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 
 	id := parts[0]
 
-	event, ok := s.Events[id]
-
-	if !ok {
-		WriteError(
-			w,
-			http.StatusNotFound,
-			"EVENT_NOT_FOUND",
-			"event not found",
-		)
-		return
-	}
-
 	datasetID := r.URL.Query().Get("dataset")
 
-	var events []domain.Event
+	var (
+		event         domain.Event
+		datasetEvents map[string]domain.Event
+		ok            bool
+	)
 
+	// если dataset передан
 	if datasetID != "" {
 
-		var ok bool
-
-		events, ok = s.Datasets[datasetID]
+		datasetEvents, ok = s.Events[datasetID]
 
 		if !ok {
 			WriteError(
@@ -81,40 +69,56 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		event, ok = datasetEvents[id]
+
+		if !ok {
+			WriteError(
+				w,
+				http.StatusNotFound,
+				"EVENT_NOT_FOUND",
+				"event not found",
+			)
+			return
+		}
+
 	} else {
 
-		found := false
+		// ищем событие во всех dataset
 
-		for _, datasetEvents := range s.Datasets {
+		for _, dataset := range s.Events {
 
-			for _, e := range datasetEvents {
-
-				if e.EventID == event.EventID {
-
-					events = datasetEvents
-					found = true
-					break
-				}
-			}
-
-			if found {
+			if found, exists := dataset[id]; exists {
+				event = found
+				datasetEvents = dataset
+				ok = true
 				break
 			}
 		}
 
-		if !found {
+		if !ok {
 			WriteError(
 				w,
 				http.StatusNotFound,
-				"DATASET_NOT_FOUND",
-				"dataset for event not found",
+				"EVENT_NOT_FOUND",
+				"event not found",
 			)
 			return
 		}
 	}
 
+
+	// превращаем map событий в slice
+
+	events := make([]domain.Event, 0, len(datasetEvents))
+
+	for _, e := range datasetEvents {
+		events = append(events, e)
+	}
+
+
 	before := []domain.Event{}
 	after := []domain.Event{}
+
 
 	targetTime, err := time.Parse(
 		time.RFC3339,
@@ -131,10 +135,13 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
 	beforeWindow := 30 * time.Minute
 	afterWindow := 30 * time.Minute
 
+
 	if value := r.URL.Query().Get("before"); value != "" {
+
 		window, err := time.ParseDuration(value)
 
 		if err != nil {
@@ -150,7 +157,9 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		beforeWindow = window
 	}
 
+
 	if value := r.URL.Query().Get("after"); value != "" {
+
 		window, err := time.ParseDuration(value)
 
 		if err != nil {
@@ -166,6 +175,7 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		afterWindow = window
 	}
 
+
 	for _, e := range events {
 
 		if e.EventID == event.EventID {
@@ -176,6 +186,7 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+
 		eventTime, err := time.Parse(
 			time.RFC3339,
 			e.Timestamp,
@@ -185,7 +196,7 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// события до
+
 		if eventTime.Before(targetTime) {
 
 			diff := targetTime.Sub(eventTime)
@@ -195,7 +206,7 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// события после
+
 		if eventTime.After(targetTime) {
 
 			diff := eventTime.Sub(targetTime)
@@ -206,13 +217,16 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+
 	sort.Slice(before, func(i, j int) bool {
 		return before[i].Timestamp < before[j].Timestamp
 	})
 
+
 	sort.Slice(after, func(i, j int) bool {
 		return after[i].Timestamp < after[j].Timestamp
 	})
+
 
 	response := domain.EventContext{
 		Event:  event,
@@ -220,7 +234,6 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		After:  after,
 	}
 
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		return
-	}
+
+	json.NewEncoder(w).Encode(response)
 }
