@@ -1,6 +1,9 @@
 package search
 
-import "event-memory-search-api/internal/domain"
+import (
+	"event-memory-search-api/internal/domain"
+	"strings"
+)
 
 type UserIndex struct {
 	ByUser map[string][]domain.Event
@@ -26,5 +29,13 @@ func (u *UserIndex) Find(user string) []domain.Event {
 		return nil
 	}
 
-	return u.ByUser[user]
+	var result []domain.Event
+
+	for key, events := range u.ByUser {
+		if strings.Contains(key, user) {
+			result = append(result, events...)
+		}
+	}
+
+	return result
 }

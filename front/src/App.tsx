@@ -426,7 +426,7 @@ function App() {
         },
       };
       const res = await searchRequest(request);
-      setSearchId(res.search_id);
+      setSearchId(res.search_id);      
       const candidates = res.candidates ?? [];
 
       if (candidates.length === 0) {
@@ -736,7 +736,8 @@ function App() {
       <input
         placeholder="Time tolerance"
         value={timeTolerance}
-        onChange={(e) => setTimeTolerance(e.target.value)}
+        onChange={(e) => 
+          setTimeTolerance(e.target.value)}
       /><br /><br />
       <h4>Ограничение</h4>
       <input
