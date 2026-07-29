@@ -1,0 +1,11 @@
+{
+  "dataset_id": "control",
+  "hints": {
+    "user_id": "ivan",
+    "action": "login"
+  },
+  "scoring": {
+    "limit": 10,
+    "min_score": 0
+  }
+}

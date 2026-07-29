@@ -10,11 +10,11 @@ http://localhost:8080
 
 ---
 
-## GET /api/health
+# GET /api/health
 
 Проверка доступности сервиса.
 
-### Response
+## Response
 
 ```json
 {
@@ -24,11 +24,11 @@ http://localhost:8080
 
 ---
 
-## GET /api/datasets
+# GET /api/datasets
 
 Возвращает список доступных наборов событий.
 
-### Response
+## Response
 
 ```json
 [
@@ -38,7 +38,7 @@ http://localhost:8080
 
 ---
 
-## POST /api/search
+# POST /api/search
 
 Создаёт поиск событий по заданным критериям.
 
@@ -50,18 +50,76 @@ http://localhost:8080
   "hints": {
     "user_id": "ivan",
     "action": "file"
+  },
+  "context": {
+    "require_nearby": {
+      "action": "file_copy"
+    }
+  },
+  "scoring": {
+    "limit": 10,
+    "min_score": 0
   }
 }
 ```
 
-Поддерживаемые критерии:
+## Поддерживаемые критерии
 
-- user_id
-- file_name
-- action
-- destination_type
+### Hints
+
+* `user_id`
+* `file_name`
+* `action`
+* `destination_type`
+* `channel`
+* `severity`
+
+### Context
+
+* `before`
+* `after`
+* `require_nearby`
+
+### Scoring
+
+* `limit`
+* `min_score`
 
 ---
+
+# Response
+
+```json
+{
+  "search_id": "srch_1784553642878703600",
+  "status": "done",
+  "dataset_id": "control",
+  "total_candidates": 24,
+  "candidates": [
+    {
+      "score": 100,
+      "matched_hints": [
+        "user_id exact",
+        "action exact"
+      ],
+      "event": {
+        "event_id": "evt_32",
+        "timestamp": "2026-06-20T11:20:00Z",
+        "user_id": "ivan",
+        "action": "file_copy",
+        "file_name": "client_data.zip",
+        "destination_type": "usb"
+      }
+    }
+  ]
+}
+```
+
+---
+
+# GET /api/search/{search_id}
+
+Возвращает ранее выполненный поиск.
 
 ## Response
 
@@ -73,44 +131,10 @@ http://localhost:8080
   "total_candidates": 24,
   "candidates": [
     {
-      "score": 75,
+      "score": 90,
       "matched_hints": [
         "user_id exact",
-        "action substring"
-      ],
-      "event": {
-        "event_id": "evt_32",
-        "timestamp": "2026-06-20T11:20:00Z",
-        "user_id": "ivan",
-        "action": "file_copy",
-        "file_name": "client_data.zip",
-        "destination_type": "usb"
-      }
-    }
-  ]
-}
-```
-
----
-
-## GET /api/search/{search_id}
-
-Возвращает ранее выполненный поиск
-
-### Response
-
-```json
-{
-  "search_id": "srch_1784553642878703600",
-  "status": "done",
-  "dataset_id": "control",
-  "total_candidates": 24,
-  "candidates": [
-    {
-      "score": 75,
-      "matched_hints": [
-        "user_id exact",
-        "action substring"
+        "action exact"
       ],
       "event": {
         "event_id": "evt_32",
@@ -122,15 +146,15 @@ http://localhost:8080
       }
     },
     {
-      "score": 50,
+      "score": 67.5,
       "matched_hints": [
-        "user_id substring",
+        "user_id exact",
         "action substring"
       ],
       "event": {
         "event_id": "evt_18",
         "timestamp": "2026-06-18T11:00:00Z",
-        "user_id": "ivanov",
+        "user_id": "ivan",
         "action": "file_copy",
         "file_name": "contract.xlsx",
         "destination_type": "usb"
@@ -142,17 +166,17 @@ http://localhost:8080
 
 ---
 
-## GET /api/events/{event_id}/context
+# GET /api/events/{event_id}/context
 
 Возвращает выбранное событие и его временной контекст.
 
 Ответ содержит:
 
-- event — найденное событие
-- before — события до него
-- after — события после него
+* `event` — найденное событие;
+* `before` — события до него;
+* `after` — события после него.
 
-### Response
+## Response
 
 ```json
 {
@@ -164,31 +188,42 @@ http://localhost:8080
 
 ---
 
-## GET /api/search/{search_id}/candidates/{event_id}/explain
+# GET /api/search/{search_id}/candidates/{event_id}/explain
 
-Возвращает объяснение расчёта score.
+Возвращает подробное объяснение расчёта score.
 
-### Response
+## Response
 
 ```json
 {
   "search_id": "srch_1784554729740319700",
   "event_id": "evt_32",
-  "score": 75,
+  "score": 100,
   "contributions": [
     {
       "hint": "user_id",
       "type": "exact",
       "value": "ivan",
       "query": "ivan",
-      "points": 50
+      "points": 45,
+      "matched": true,
+      "reason": "exact user id match"
     },
     {
       "hint": "action",
-      "type": "substring",
+      "type": "exact",
       "value": "file_copy",
-      "query": "file",
-      "points": 25
+      "query": "file_copy",
+      "points": 45,
+      "matched": true,
+      "reason": "exact action match"
+    },
+    {
+      "hint": "nearby",
+      "type": "matched",
+      "points": 10,
+      "matched": true,
+      "reason": "required nearby event found"
     }
   ]
 }
@@ -198,53 +233,229 @@ http://localhost:8080
 
 # HTTP Status Codes
 
-| Code | Description |
-|------|-------------|
-| 200 | Success |
-| 400 | Invalid request |
-| 404 | Not found |
-| 405 | Method not allowed |
-| 500 | Internal server error |
+| Code | Description           |
+| ---- | --------------------- |
+| 200  | Success               |
+| 400  | Invalid request       |
+| 404  | Not found             |
+| 405  | Method not allowed    |
+| 500  | Internal server error |
 
 ---
 
-# Score
+# Score Calculation
 
-Максимальный score: 100
+Максимальный score: **100**
 
-Вес каждого hint: weight = 100 / количество заполненных hints
+Score состоит из двух частей:
 
-Пример:
+* **90 баллов** — распределяются между заполненными `hints`;
+* **10 баллов** — резерв под `nearby`.
 
-2 hints:
+---
 
-```json
-{
-  "user_id": "ivan",
-  "action": "file"
-}
-```
-
-Каждый hint имеет вес: 100 / 2 = 50
-Расчёт: score = user_id + action = 50 + 50 = 100
-
-Частичное совпадение даёт половину веса:
-
-Пример:
-
-user_id = ivan
-action = file
+## Hints weight
 
 Вес каждого hint:
 
-100 / 2 = 50
+```
+weight = 90 / количество заполненных hints
+```
 
-Запрос: user_id = ivan
-Событие: user_id = ivanov
-Совпадение частичное: user_id substring = 50 / 2 = +25
+---
 
-Запрос: action = file
-Событие: action = file
-Совпадение точное: action exact = 50 / 1 = +50
+## Пример: два hints
 
-Итоговый score: user_id substring + action exact = 25 + 50 = 75
+Запрос:
+
+```json
+{
+  "hints": {
+    "user_id": "ivan",
+    "action": "file"
+  }
+}
+```
+
+Количество hints:
+
+```
+2
+```
+
+Вес каждого:
+
+```
+90 / 2 = 45
+```
+
+При полном совпадении:
+
+```
+user_id exact = +45
+action exact = +45
+```
+
+Итог:
+
+```
+score = 90
+```
+
+---
+
+# Частичное совпадение
+
+Частичное совпадение даёт половину веса hint.
+
+Пример:
+
+Запрос:
+
+```json
+{
+  "hints": {
+    "user_id": "ivan"
+  }
+}
+```
+
+Событие:
+
+```json
+{
+  "user_id": "ivanov"
+}
+```
+
+Совпадение:
+
+```
+user_id substring
+```
+
+Расчёт:
+
+```
+weight = 90 / 1 = 90
+
+substring = 90 / 2 = 45
+```
+
+Итог:
+
+```
+score = 45
+```
+
+---
+
+# Nearby Bonus
+
+`nearby` добавляет до 10 баллов при выполнении условия `require_nearby`.
+
+Пример:
+
+```json
+{
+  "hints": {
+    "user_id": "ivan"
+  },
+  "context": {
+    "require_nearby": {
+      "action": "file_copy"
+    }
+  }
+}
+```
+
+Расчёт:
+
+```
+user_id exact = +90
+
+nearby event found = +10
+```
+
+Итог:
+
+```
+score = 100
+```
+
+Если nearby-условие не выполнено:
+
+```
+score = 90
+```
+
+---
+
+# Sorting
+
+Результаты сортируются:
+
+1. По `score` по убыванию.
+2. При одинаковом score — по времени события (`timestamp`) от новых к старым.
+
+---
+
+# CLI Search
+
+Поддерживается отдельный CLI-поиск:
+
+```bash
+go run ./cmd/event-memory-search-api search
+```
+
+## Options
+
+### Dataset
+
+```bash
+--datasets ./internal/datasets
+```
+
+### Custom events file
+
+```bash
+--events ./events.jsonl
+```
+
+### Query file
+
+```bash
+--query query.json
+```
+
+### Save output
+
+```bash
+--out result.json
+```
+
+Пример:
+
+```bash
+go run ./cmd/event-memory-search-api search \
+  --query query.json \
+  --out result.json
+```
+
+---
+
+# Example query.json
+
+```json
+{
+  "dataset_id": "control",
+  "hints": {
+    "user_id": "ivan",
+    "action": "login"
+  },
+  "scoring": {
+    "limit": 10,
+    "min_score": 0
+  }
+}
+```

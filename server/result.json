@@ -1,0 +1,82 @@
+[
+  {
+    "event_id": "evt_33",
+    "timestamp": "2026-06-20T11:40:00Z",
+    "score": 45,
+    "matched": [
+      "user_id exact"
+    ]
+  },
+  {
+    "event_id": "evt_32",
+    "timestamp": "2026-06-20T11:20:00Z",
+    "score": 45,
+    "matched": [
+      "user_id exact"
+    ]
+  },
+  {
+    "event_id": "evt_31",
+    "timestamp": "2026-06-20T11:00:00Z",
+    "score": 45,
+    "matched": [
+      "user_id exact"
+    ]
+  },
+  {
+    "event_id": "evt_30",
+    "timestamp": "2026-06-20T10:30:00Z",
+    "score": 45,
+    "matched": [
+      "user_id exact"
+    ]
+  },
+  {
+    "event_id": "evt_29",
+    "timestamp": "2026-06-20T10:00:00Z",
+    "score": 45,
+    "matched": [
+      "user_id exact"
+    ]
+  },
+  {
+    "event_id": "evt_25",
+    "timestamp": "2026-06-19T10:00:00Z",
+    "score": 22.5,
+    "matched": [
+      "user_id substring"
+    ]
+  },
+  {
+    "event_id": "evt_24",
+    "timestamp": "2026-06-19T09:40:00Z",
+    "score": 22.5,
+    "matched": [
+      "user_id substring"
+    ]
+  },
+  {
+    "event_id": "evt_23",
+    "timestamp": "2026-06-19T09:10:00Z",
+    "score": 22.5,
+    "matched": [
+      "user_id substring"
+    ]
+  },
+  {
+    "event_id": "evt_19",
+    "timestamp": "2026-06-18T11:30:00Z",
+    "score": 22.5,
+    "matched": [
+      "user_id substring"
+    ]
+  },
+  {
+    "event_id": "evt_18",
+    "timestamp": "2026-06-18T11:00:00Z",
+    "score": 22.5,
+    "matched": [
+      "user_id substring"
+    ]
+  }
+]

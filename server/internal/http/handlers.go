@@ -66,6 +66,15 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Hints.UserID != "" {
+		if index, ok := s.UserIndexes[req.DatasetID]; ok {
+			indexed := index.Find(req.Hints.UserID)
+			if len(indexed) > 0 {
+				events = indexed
+			}
+		}
+	}
+	
 	if (req.Time.Around == "") != (req.Time.Tolerance == "") {
 		WriteError(
 			w,

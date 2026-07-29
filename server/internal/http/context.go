@@ -63,15 +63,54 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 
 	datasetID := r.URL.Query().Get("dataset")
 
-	events, ok := s.Datasets[datasetID]
-	if !ok {
-		WriteError(
-			w,
-			http.StatusNotFound,
-			"DATASET_NOT_FOUND",
-			"dataset not found",
-		)
-		return
+	var events []domain.Event
+
+	if datasetID != "" {
+
+		var ok bool
+
+		events, ok = s.Datasets[datasetID]
+
+		if !ok {
+			WriteError(
+				w,
+				http.StatusNotFound,
+				"DATASET_NOT_FOUND",
+				"dataset not found",
+			)
+			return
+		}
+
+	} else {
+
+		found := false
+
+		for _, datasetEvents := range s.Datasets {
+
+			for _, e := range datasetEvents {
+
+				if e.EventID == event.EventID {
+
+					events = datasetEvents
+					found = true
+					break
+				}
+			}
+
+			if found {
+				break
+			}
+		}
+
+		if !found {
+			WriteError(
+				w,
+				http.StatusNotFound,
+				"DATASET_NOT_FOUND",
+				"dataset for event not found",
+			)
+			return
+		}
 	}
 
 	before := []domain.Event{}
@@ -92,7 +131,6 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// временные окна из запроса
 	beforeWindow := 30 * time.Minute
 	afterWindow := 30 * time.Minute
 

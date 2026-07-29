@@ -1,75 +1,101 @@
-# React + TypeScript + Vite
+# Интерфейс
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Проект **Event Memory Search API**
 
-Currently, two official plugins are available:
+Frontend реализован на React + TypeScript с использованием Vite.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Требования
 
-## React Compiler
+Перед запуском должны быть установлены:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+* Node.js 20 или новее
+* npm
 
-## Expanding the ESLint configuration
+## Установка
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Установите зависимости:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Переменные окружения
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Создайте файл `.env` в каталоге `front` и укажите необходимые параметры.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Пример:
+
+```env
+VITE_API_URL=http://localhost:8080
+VITE_USE_MOCK=false
+```
+
+### Описание переменных
+
+| Переменная      | Описание                                                       |
+| --------------- | -------------------------------------------------------------- |
+| `VITE_API_URL`  | Адрес backend API.                                             |
+| `VITE_USE_MOCK` | Если `true`, приложение использует mock-данные вместо backend. |
+
+## Запуск в режиме разработки
+
+```bash
+npm run dev
+```
+
+По умолчанию приложение доступно по адресу:
 
 ```
+http://localhost:5173
+```
+
+## Сборка проекта
+
+```bash
+npm run build
+```
+
+## Предварительный просмотр production-сборки
+
+```bash
+npm run preview
+```
+
+## Тестирование
+
+```bash
+npm test
+```
+
+## Работа с backend
+
+Перед запуском frontend необходимо запустить backend-сервер.
+
+По умолчанию frontend обращается к:
+
+```
+http://localhost:8080
+```
+
+Адрес backend можно изменить через переменную окружения:
+
+```env
+VITE_API_URL=http://localhost:8080
+```
+
+## Использование mock-режима
+
+Для запуска интерфейса без backend:
+
+```env
+VITE_USE_MOCK=true
+```
+
+В этом режиме приложение использует встроенные тестовые данные и не выполняет запросы к серверу.
+
+## Стек технологий
+
+* React
+* TypeScript
+* Vite
+* Fetch API
