@@ -1,6 +1,6 @@
 # Event Memory Search API
 
-API для поиска событий в журнале действий пользователей.
+REST API для поиска и анализа событий пользователей.
 
 ## Base URL
 
@@ -10,11 +10,15 @@ http://localhost:8080
 
 ---
 
-# GET /api/health
+# Health Check
 
-Проверка доступности сервиса.
+## GET /api/health
 
-## Response
+Проверяет доступность сервиса.
+
+### Response
+
+Status: `200 OK`
 
 ```json
 {
@@ -24,36 +28,57 @@ http://localhost:8080
 
 ---
 
-# GET /api/datasets
+# Datasets
+
+## GET /api/datasets
 
 Возвращает список доступных наборов событий.
 
-## Response
+### Response
+
+Status: `200 OK`
 
 ```json
 [
-  "control"
+  "control",
+  "test",
+  "large100k"
 ]
 ```
 
 ---
 
-# POST /api/search
+# Search
+
+## POST /api/search
 
 Создаёт поиск событий по заданным критериям.
+
+---
 
 ## Request
 
 ```json
 {
   "dataset_id": "control",
+  "time": {
+    "around": "2026-06-20T11:00:00Z",
+    "tolerance": "10m"
+  },
   "hints": {
     "user_id": "ivan",
-    "action": "file"
+    "file_name": "report.docx",
+    "action": "login",
+    "destination_type": "usb",
+    "channel": "web",
+    "severity": "high"
   },
   "context": {
+    "before": "30m",
+    "after": "30m",
     "require_nearby": {
-      "action": "file_copy"
+      "action": "create_archive",
+      "within": "10m"
     }
   },
   "scoring": {
@@ -63,120 +88,67 @@ http://localhost:8080
 }
 ```
 
-## Поддерживаемые критерии
+---
 
-### Hints
+# Search Hints
 
-* `user_id`
-* `file_name`
-* `action`
-* `destination_type`
-* `channel`
-* `severity`
+Поддерживаемые критерии:
 
-### Context
-
-* `before`
-* `after`
-* `require_nearby`
-
-### Scoring
-
-* `limit`
-* `min_score`
+| Поле             | Описание          |
+| ---------------- | ----------------- |
+| user_id          | Пользователь      |
+| file_name        | Имя файла         |
+| action           | Тип действия      |
+| destination_type | Тип назначения    |
+| channel          | Канал события     |
+| severity         | Уровень опасности |
 
 ---
 
-# Response
+# Time Filter
+
+Фильтр по времени:
 
 ```json
 {
-  "search_id": "srch_1784553642878703600",
-  "status": "done",
-  "dataset_id": "control",
-  "total_candidates": 24,
-  "candidates": [
-    {
-      "score": 100,
-      "matched_hints": [
-        "user_id exact",
-        "action exact"
-      ],
-      "event": {
-        "event_id": "evt_32",
-        "timestamp": "2026-06-20T11:20:00Z",
-        "user_id": "ivan",
-        "action": "file_copy",
-        "file_name": "client_data.zip",
-        "destination_type": "usb"
-      }
-    }
-  ]
+  "time": {
+    "around": "2026-06-20T11:00:00Z",
+    "tolerance": "10m"
+  }
 }
+```
+
+События выбираются из диапазона:
+
+```
+around - tolerance
+до
+around + tolerance
+```
+
+Пример:
+
+```
+11:00 ± 10 минут
+
+10:50 — 11:10
 ```
 
 ---
 
-# GET /api/search/{search_id}
+# Context Search
 
-Возвращает ранее выполненный поиск.
+## GET /api/events/{event_id}/context
 
-## Response
-
-```json
-{
-  "search_id": "srch_1784553642878703600",
-  "status": "done",
-  "dataset_id": "control",
-  "total_candidates": 24,
-  "candidates": [
-    {
-      "score": 90,
-      "matched_hints": [
-        "user_id exact",
-        "action exact"
-      ],
-      "event": {
-        "event_id": "evt_32",
-        "timestamp": "2026-06-20T11:20:00Z",
-        "user_id": "ivan",
-        "action": "file_copy",
-        "file_name": "client_data.zip",
-        "destination_type": "usb"
-      }
-    },
-    {
-      "score": 67.5,
-      "matched_hints": [
-        "user_id exact",
-        "action substring"
-      ],
-      "event": {
-        "event_id": "evt_18",
-        "timestamp": "2026-06-18T11:00:00Z",
-        "user_id": "ivan",
-        "action": "file_copy",
-        "file_name": "contract.xlsx",
-        "destination_type": "usb"
-      }
-    }
-  ]
-}
-```
-
----
-
-# GET /api/events/{event_id}/context
-
-Возвращает выбранное событие и его временной контекст.
+Возвращает событие и связанные события вокруг него.
 
 Ответ содержит:
 
-* `event` — найденное событие;
+* `event` — выбранное событие;
 * `before` — события до него;
 * `after` — события после него.
 
-## Response
+### Response
 
 ```json
 {
@@ -188,35 +160,91 @@ http://localhost:8080
 
 ---
 
-# GET /api/search/{search_id}/candidates/{event_id}/explain
+# Nearby Search
 
-Возвращает подробное объяснение расчёта score.
-
-## Response
+Поле:
 
 ```json
 {
-  "search_id": "srch_1784554729740319700",
-  "event_id": "evt_32",
+  "context": {
+    "require_nearby": {
+      "action": "file_copy",
+      "within": "10m"
+    }
+  }
+}
+```
+
+Проверяет наличие связанного события рядом по времени.
+
+При успешном выполнении добавляется бонус:
+
+```
+nearby = +10 баллов
+```
+
+---
+
+# Search Response
+
+## POST /api/search
+
+### Response
+
+```json
+{
+  "search_id": "srch_123",
+  "status": "done",
+  "dataset_id": "control",
+  "total_candidates": 10,
+  "candidates": [
+    {
+      "score": 100,
+      "matched_hints": [
+        "user_id exact",
+        "action exact"
+      ],
+      "event": {
+        "event_id": "evt_1",
+        "timestamp": "2026-06-20T11:00:00Z",
+        "user_id": "ivan",
+        "action": "login"
+      }
+    }
+  ]
+}
+```
+
+---
+
+# Search By ID
+
+## GET /api/search/{search_id}
+
+Возвращает ранее выполненный поиск.
+
+---
+
+# Explain Score
+
+## GET /api/search/{search_id}/candidates/{event_id}/explain
+
+Возвращает детализацию расчёта score.
+
+### Response
+
+```json
+{
+  "search_id": "srch_123",
+  "event_id": "evt_1",
   "score": 100,
   "contributions": [
     {
       "hint": "user_id",
       "type": "exact",
-      "value": "ivan",
-      "query": "ivan",
-      "points": 45,
+      "points": 90,
       "matched": true,
       "reason": "exact user id match"
-    },
-    {
-      "hint": "action",
-      "type": "exact",
-      "value": "file_copy",
-      "query": "file_copy",
-      "points": 45,
-      "matched": true,
-      "reason": "exact action match"
     },
     {
       "hint": "nearby",
@@ -231,162 +259,63 @@ http://localhost:8080
 
 ---
 
-# HTTP Status Codes
-
-| Code | Description           |
-| ---- | --------------------- |
-| 200  | Success               |
-| 400  | Invalid request       |
-| 404  | Not found             |
-| 405  | Method not allowed    |
-| 500  | Internal server error |
-
----
-
 # Score Calculation
 
-Максимальный score: **100**
-
-Score состоит из двух частей:
-
-* **90 баллов** — распределяются между заполненными `hints`;
-* **10 баллов** — резерв под `nearby`.
-
----
-
-## Hints weight
-
-Вес каждого hint:
+Максимальный score:
 
 ```
-weight = 90 / количество заполненных hints
-```
-
----
-
-## Пример: два hints
-
-Запрос:
-
-```json
-{
-  "hints": {
-    "user_id": "ivan",
-    "action": "file"
-  }
-}
-```
-
-Количество hints:
-
-```
-2
-```
-
-Вес каждого:
-
-```
-90 / 2 = 45
-```
-
-При полном совпадении:
-
-```
-user_id exact = +45
-action exact = +45
-```
-
-Итог:
-
-```
-score = 90
-```
-
----
-
-# Частичное совпадение
-
-Частичное совпадение даёт половину веса hint.
-
-Пример:
-
-Запрос:
-
-```json
-{
-  "hints": {
-    "user_id": "ivan"
-  }
-}
-```
-
-Событие:
-
-```json
-{
-  "user_id": "ivanov"
-}
-```
-
-Совпадение:
-
-```
-user_id substring
+100
 ```
 
 Расчёт:
 
 ```
-weight = 90 / 1 = 90
-
-substring = 90 / 2 = 45
-```
-
-Итог:
-
-```
-score = 45
+90 баллов — hints
+10 баллов — nearby bonus
 ```
 
 ---
 
-# Nearby Bonus
+## Hint Weight
 
-`nearby` добавляет до 10 баллов при выполнении условия `require_nearby`.
+Вес распределяется между заполненными критериями:
+
+```
+weight = 90 / количество hints
+```
+
+---
+
+## Exact Match
 
 Пример:
 
-```json
-{
-  "hints": {
-    "user_id": "ivan"
-  },
-  "context": {
-    "require_nearby": {
-      "action": "file_copy"
-    }
-  }
-}
+```
+user_id = ivan
+event.user_id = ivan
 ```
 
-Расчёт:
+Результат:
 
 ```
-user_id exact = +90
-
-nearby event found = +10
++90
 ```
 
-Итог:
+---
+
+## Partial Match
+
+Подстрочное совпадение:
 
 ```
-score = 100
+query: ivan
+event: ivanov
 ```
 
-Если nearby-условие не выполнено:
+Начисляется:
 
 ```
-score = 90
+50% веса hint
 ```
 
 ---
@@ -396,66 +325,94 @@ score = 90
 Результаты сортируются:
 
 1. По `score` по убыванию.
-2. При одинаковом score — по времени события (`timestamp`) от новых к старым.
+2. При одинаковом score:
+
+   * новые события выше старых.
+
+---
+
+# Error Responses
+
+Все ошибки возвращаются в JSON формате.
+
+Пример:
+
+```json
+{
+  "code": "dataset_not_found",
+  "message": "dataset unknown not found"
+}
+```
+
+---
+
+# HTTP Status Codes
+
+| Код | Описание                |
+| --- | ----------------------- |
+| 200 | Успешный запрос         |
+| 400 | Некорректный запрос     |
+| 404 | Ресурс не найден        |
+| 405 | Метод не поддерживается |
+| 500 | Ошибка сервера          |
 
 ---
 
 # CLI Search
 
-Поддерживается отдельный CLI-поиск:
+Поддерживается поиск через CLI:
 
 ```bash
 go run ./cmd/event-memory-search-api search
 ```
 
-## Options
+Параметры:
 
-### Dataset
-
-```bash
---datasets ./internal/datasets
 ```
-
-### Custom events file
-
-```bash
---events ./events.jsonl
-```
-
-### Query file
-
-```bash
---query query.json
-```
-
-### Save output
-
-```bash
---out result.json
+--datasets
+--events
+--query
+--out
 ```
 
 Пример:
 
 ```bash
 go run ./cmd/event-memory-search-api search \
-  --query query.json \
-  --out result.json
+--query query.json \
+--out result.json
 ```
 
 ---
 
-# Example query.json
+# Testing
 
-```json
-{
-  "dataset_id": "control",
-  "hints": {
-    "user_id": "ivan",
-    "action": "login"
-  },
-  "scoring": {
-    "limit": 10,
-    "min_score": 0
-  }
-}
+Запуск тестов:
+
+```bash
+go test ./...
+```
+
+Benchmark:
+
+```bash
+go test -bench=.
+```
+
+---
+
+# Project Structure
+
+```
+cmd/
+ └── event-memory-search-api/
+
+internal/
+ ├── domain/
+ ├── http/
+ ├── search/
+ └── datasets/
+
+docs/
+ └── api.md
 ```

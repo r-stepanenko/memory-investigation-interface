@@ -1,0 +1,26 @@
+{
+  "dataset_id": "control",
+  "time": {
+    "around": "2026-06-16T10:15:00Z",
+    "tolerance": "3d"
+  },
+  "hints": {
+    "user_id": "ivan",
+    "file_name": "client base",
+    "action": "email",
+    "destination_type": "external"
+  },
+  "context": {
+    "before": "30m",
+    "after": "10m",
+    "require_nearby": [
+      {
+        "action": "create_archive"
+      },
+      {
+        "action": "email_send"
+      }
+    ]
+  },
+  "limit": 20
+}

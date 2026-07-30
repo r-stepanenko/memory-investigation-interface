@@ -1,0 +1,32 @@
+{
+  "status": "done",
+  "dataset_id": "control",
+  "total_candidates": 1,
+  "candidates": [
+    {
+      "score": 110,
+      "matched_hints": [
+        "user_id",
+        "file_name",
+        "action",
+        "destination_type"
+      ],
+      "event": {
+        "event_id": "evt_001",
+        "timestamp": "2026-06-16T10:15:00Z",
+        "user_id": "ivanov",
+        "machine_id": "pc_001",
+        "action": "email_send",
+        "channel": "email",
+        "file_name": "client_base.xlsx",
+        "file_ext": "xlsx",
+        "content_classes": [
+          "client_data"
+        ],
+        "destination_type": "external",
+        "destination": "external_email",
+        "severity": "high"
+      }
+    }
+  ]
+}

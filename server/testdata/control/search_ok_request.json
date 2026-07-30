@@ -1,0 +1,9 @@
+{
+  "dataset_id": "control",
+  "hints": {
+    "user_id": "ivan",
+    "file_name": "client",
+    "action": "email",
+    "destination_type": "external"
+  }
+}

@@ -555,5 +555,3 @@ Complete-Check -Ctx $ctx -Extra @{
     expected_api = @('/api/health', '/api/datasets', 'POST /api/search', 'GET /api/search/{id}', 'GET /api/events/{id}/context', 'GET /api/search/{id}/candidates/{event_id}/explain')
     port = $Port
 }
-
-

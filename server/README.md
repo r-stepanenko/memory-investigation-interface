@@ -13,7 +13,7 @@ go build ./...
 или
 
 ```bash
-make build
+make -f Makefile build
 ```
 
 ## Запуск
@@ -27,7 +27,7 @@ go run ./cmd/event-memory-search-api
 или
 
 ```bash
-make run
+make -f Makefile run
 ```
 
 После запуска сервер будет доступен по адресу:
@@ -47,7 +47,7 @@ go test -v ./internal/http
 или
 
 ```bash
-make test
+make -f Makefile test
 ```
 
 ## Проверка состояния сервера
@@ -123,3 +123,12 @@ GET http://localhost:8080/api/events/{event_id}/context
 ```text
 GET http://localhost:8080/api/events/{event_id}/context?dataset=control&before=30m&after=30m
 ```
+
+# backend
+cd server
+go run ./cmd/event-memory-search-api
+
+# frontend
+cd front
+npm install
+npm run dev

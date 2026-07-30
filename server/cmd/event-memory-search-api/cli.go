@@ -1,6 +1,9 @@
 package main
 
-import "flag"
+import (
+	"flag"
+	"os"
+)
 
 type CLIConfig struct {
 	Addr        string
@@ -8,9 +11,16 @@ type CLIConfig struct {
 }
 
 func ParseCLI() CLIConfig {
+
+	defaultAddr := ":8080"
+
+	if port := os.Getenv("PORT"); port != "" {
+		defaultAddr = ":" + port
+	}
+
 	addr := flag.String(
 		"addr",
-		":8080",
+		defaultAddr,
 		"server address",
 	)
 
