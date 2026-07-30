@@ -10,7 +10,7 @@ import (
 
 func BenchmarkSearch100K(b *testing.B) {
 
-	events, err := datasets.LoadEvents(
+	events, _, err := datasets.LoadEvents(
 		filepath.Join("..", "datasets", "events100k.jsonl"),
 	)
 	if err != nil {
@@ -42,7 +42,7 @@ func BenchmarkSearch100K(b *testing.B) {
 
 func BenchmarkSearch1M(b *testing.B) {
 
-	events, err := datasets.LoadEvents(
+	events, _, err := datasets.LoadEvents(
 		filepath.Join("..", "datasets", "events1m.jsonl"),
 	)
 	if err != nil {

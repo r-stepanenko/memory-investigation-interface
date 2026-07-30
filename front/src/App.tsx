@@ -4,7 +4,7 @@ import axios from "axios";
 import {
   mockSearch,
   mockContext,
-  mockDatasets
+  mockDatasets,
 } from "./fixtures/mock";
 
 import {
@@ -73,13 +73,21 @@ function App() {
   const [repeatPending, setRepeatPending] = useState(false);
   const [contexts, setContexts] = useState<Record<string, any>>({});
 
-
   useEffect(() => {
     async function loadDatasets() {
+
+      if (USE_MOCK) {
+        setDatasets(mockDatasets);
+
+        if (mockDatasets.length > 0) {
+          setDataset(mockDatasets[0].id);
+        }
+
+        return;
+      }
+
       try {
         const data = await getDatasets();
-        console.log(data);
-
         setDatasets(data);
 
         if (data.length > 0) {
@@ -111,9 +119,40 @@ function App() {
 
   useEffect(() => {
     async function loadDatasetFilters() {
+
+      if (isMockMode) {
+        setFilters({
+          user_id: ["ivan", "ivanov", "petrov"],
+          file_name: [
+            "client_data.zip",
+            "clients.zip",
+            "report.xlsx"
+          ],
+          action: [
+            "file_copy",
+            "email_send",
+            "create_archive"
+          ],
+          destination_type: [
+            "usb",
+            "external",
+            "internal"
+          ],
+          channel: [],
+          severity: []
+        });
+
+        return;
+      }
+
+
       try {
-        const res = await axios.get(`${API_URL}/api/datasets/${dataset}/filters`);
+        const res = await axios.get(
+          `${API_URL}/api/datasets/${dataset}/filters`
+        );
+
         setFilters(res.data);
+
       } catch (error: any) {
         if (error.code === "ERR_NETWORK") {
           setMessage("Backend недоступен.");
@@ -239,6 +278,16 @@ function App() {
   }
 
   async function loadCompareContext(eventId: string) {
+
+    if (isMockMode) {
+      setContexts(prev => ({
+        ...prev,
+        [eventId]: mockContext[eventId]
+      }));
+
+      return;
+    }
+
     if (contexts[eventId]) {
       return;
     }
@@ -340,6 +389,20 @@ function App() {
       return;
     }
 
+    if (
+      minScore &&
+      (
+        Number(minScore) < 0 ||
+        Number(minScore) > 100 ||
+        Number.isNaN(Number(minScore))
+      )
+    ) {
+      setMessage(
+        "Min score должен быть числом от 0 до 100"
+      );
+      return;
+    }
+
     const durationRegex = /^\d+[smhd]$/;
 
     if (timeAround && isNaN(new Date(timeAround).getTime())) {
@@ -426,7 +489,7 @@ function App() {
         },
       };
       const res = await searchRequest(request);
-      setSearchId(res.search_id);      
+      setSearchId(res.search_id);
       const candidates = res.candidates ?? [];
 
       if (candidates.length === 0) {
@@ -476,15 +539,11 @@ function App() {
             min_score: minScore ? Number(minScore) : undefined,
           },
         });
-        console.log(
-          JSON.stringify(candidates[0].event, null, 2)
-        );
       }
 
     } catch (error: any) {
-      console.log("SEARCH ERROR:", error);
 
-      if (USE_MOCK) {
+      if (isMockMode) {
         setSearchId("mock-search-1");
         setEvents(mockSearch.candidates);
         return;
@@ -503,6 +562,12 @@ function App() {
     if (selectedExplainId === eventId) {
       setExplain(null);
       setSelectedExplainId("");
+      return;
+    }
+
+    if (isMockMode) {
+      setExplain(null);
+      setMessage("Explain недоступен в mock режиме");
       return;
     }
 
@@ -736,7 +801,7 @@ function App() {
       <input
         placeholder="Time tolerance"
         value={timeTolerance}
-        onChange={(e) => 
+        onChange={(e) =>
           setTimeTolerance(e.target.value)}
       /><br /><br />
       <h4>Ограничение</h4>
@@ -861,6 +926,12 @@ function App() {
       <button onClick={search}>
         Поиск
       </button>
+
+      {isMockMode && (
+        <div className="error-box">
+          Mock режим: результаты демонстрационные
+        </div>
+      )}
 
       <h3>Быстрые фильтры результатов</h3>
 

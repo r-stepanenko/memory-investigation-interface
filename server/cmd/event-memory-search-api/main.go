@@ -16,40 +16,82 @@ import (
 
 func main() {
 
-	if len(os.Args) > 1 && os.Args[1] == "search" {
-		RunSearchCLI(os.Args[2:])
-		return
+	if len(os.Args) > 1 {
+
+		switch os.Args[1] {
+
+		case "serve":
+			os.Args = append([]string{os.Args[0]}, os.Args[2:]...)
+
+		case "search":
+			RunSearchCLI(os.Args[2:])
+			return
+
+		default:
+			log.Fatalf("unknown command: %s", os.Args[1])
+		}
 	}
 
 	config := ParseCLI()
 
-	events, err := datasets.LoadEvents(
+	events, stats, err := datasets.LoadEvents(
 		filepath.Join(config.DatasetsDir, "events.jsonl"),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	testEvents, err := datasets.LoadEvents(
+	if stats.Skipped > 0 {
+		log.Printf(
+			"Loaded control dataset: %d events (%d skipped)",
+			stats.Loaded,
+			stats.Skipped,
+		)
+	} else {
+		log.Printf(
+			"Loaded control dataset: %d events",
+			stats.Loaded,
+		)
+	}
+
+	testEvents, testStats, err := datasets.LoadEvents(
 		filepath.Join(config.DatasetsDir, "testEvents.jsonl"),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	events100k, err := datasets.LoadEvents(
+	log.Printf(
+		"Loaded test dataset: %d events (%d skipped)",
+		testStats.Loaded,
+		testStats.Skipped,
+	)
+
+	events100k, stats100k, err := datasets.LoadEvents(
 		filepath.Join(config.DatasetsDir, "events100k.jsonl"),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	events1m, err := datasets.LoadEvents(
+	log.Printf(
+		"Loaded large100k dataset: %d events (%d skipped)",
+		stats100k.Loaded,
+		stats100k.Skipped,
+	)
+
+	events1m, stats1m, err := datasets.LoadEvents(
 		filepath.Join(config.DatasetsDir, "events1m.jsonl"),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Printf(
+		"Loaded large1m dataset: %d events (%d skipped)",
+		stats1m.Loaded,
+		stats1m.Skipped,
+	)
 
 	eventMap := make(map[string]map[string]domain.Event)
 	eventMap["control"] = make(map[string]domain.Event)
@@ -80,8 +122,6 @@ func main() {
 	for i, event := range events {
 		eventIndex[event.EventID] = i
 	}
-
-	log.Printf("evt_32 in global map: %+v", eventMap["evt_32"])
 
 	controlIndex := search.BuildUserIndex(events)
 	testIndex := search.BuildUserIndex(testEvents)

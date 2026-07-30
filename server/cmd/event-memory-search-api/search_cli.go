@@ -114,10 +114,21 @@ func RunSearchCLI(args []string) {
 	)
 
 	if config.EventsFile != "" {
+		var stats datasets.LoadStats
 
-		events, err = datasets.LoadEvents(
-			config.EventsFile,
-		)
+		events, stats, err = datasets.LoadEvents(config.EventsFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if stats.Skipped > 0 {
+			log.Printf(
+				"%s: loaded=%d skipped=%d",
+				config.EventsFile,
+				stats.Loaded,
+				stats.Skipped,
+			)
+		}
 
 	} else {
 
@@ -265,14 +276,16 @@ func loadCLIDataset(name string, dir string) ([]domain.Event, error) {
 	switch name {
 
 	case "control":
-		return datasets.LoadEvents(
+		events, _, err := datasets.LoadEvents(
 			dir + "/events.jsonl",
 		)
+		return events, err
 
 	case "test":
-		return datasets.LoadEvents(
+		events, _, err := datasets.LoadEvents(
 			dir + "/testEvents.jsonl",
 		)
+		return events, err
 
 	default:
 		return nil, fmt.Errorf(

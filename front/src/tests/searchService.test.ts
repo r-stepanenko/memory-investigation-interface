@@ -4,7 +4,7 @@ import {
     getDatasets,
     getExplain,
     getContext
-} from "../src/services/searchService";
+} from "../services/searchService";
 
 
 describe("searchService", () => {

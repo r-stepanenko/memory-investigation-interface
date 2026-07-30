@@ -106,7 +106,6 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-
 	// превращаем map событий в slice
 
 	events := make([]domain.Event, 0, len(datasetEvents))
@@ -115,10 +114,8 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		events = append(events, e)
 	}
 
-
 	before := []domain.Event{}
 	after := []domain.Event{}
-
 
 	targetTime, err := time.Parse(
 		time.RFC3339,
@@ -135,10 +132,8 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	beforeWindow := 30 * time.Minute
 	afterWindow := 30 * time.Minute
-
 
 	if value := r.URL.Query().Get("before"); value != "" {
 
@@ -157,7 +152,6 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		beforeWindow = window
 	}
 
-
 	if value := r.URL.Query().Get("after"); value != "" {
 
 		window, err := time.ParseDuration(value)
@@ -175,7 +169,6 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		afterWindow = window
 	}
 
-
 	for _, e := range events {
 
 		if e.EventID == event.EventID {
@@ -186,7 +179,6 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-
 		eventTime, err := time.Parse(
 			time.RFC3339,
 			e.Timestamp,
@@ -196,7 +188,6 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-
 		if eventTime.Before(targetTime) {
 
 			diff := targetTime.Sub(eventTime)
@@ -205,7 +196,6 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 				before = append(before, e)
 			}
 		}
-
 
 		if eventTime.After(targetTime) {
 
@@ -217,23 +207,19 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-
 	sort.Slice(before, func(i, j int) bool {
 		return before[i].Timestamp < before[j].Timestamp
 	})
 
-
 	sort.Slice(after, func(i, j int) bool {
 		return after[i].Timestamp < after[j].Timestamp
 	})
-
 
 	response := domain.EventContext{
 		Event:  event,
 		Before: before,
 		After:  after,
 	}
-
 
 	json.NewEncoder(w).Encode(response)
 }

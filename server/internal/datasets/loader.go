@@ -5,34 +5,43 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
 	"event-memory-search-api/internal/domain"
 )
 
-func LoadEvents(path string) ([]domain.Event, error) {
+type LoadStats struct {
+	Loaded  int
+	Skipped int
+}
+
+func LoadEvents(path string) ([]domain.Event, LoadStats, error) {
 
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open dataset: %w", err)
+		return nil, LoadStats{}, fmt.Errorf("failed to open dataset: %w", err)
 	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 
 	events := make([]domain.Event, 0)
+	stats := LoadStats{}
 
 	for scanner.Scan() {
 		var event domain.Event
 
 		if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
-			return nil, fmt.Errorf("invalid event: %w", err)
+			stats.Skipped++
+			continue
 		}
 
 		events = append(events, event)
+		stats.Loaded++
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("failed reading dataset: %w", err)
+		return nil, stats, fmt.Errorf("failed reading dataset: %w", err)
 	}
 
-	return events, nil
+	return events, stats, nil
 }
