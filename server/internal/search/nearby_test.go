@@ -1,11 +1,10 @@
 package search_test
 
 import (
-	"testing"
-	"time"
-
 	"event-memory-search-api/internal/domain"
 	"event-memory-search-api/internal/search"
+	"testing"
+	"time"
 )
 
 func TestFindNearbyEvents(t *testing.T) {
@@ -38,9 +37,14 @@ func TestFindNearbyEvents(t *testing.T) {
 	found := search.FindNearbyEvents(
 		events,
 		event,
+		[]domain.NearbyRequirement{
+			{
+				Action: "create_archive",
+				Within: "10m",
+			},
+		},
 		10*time.Minute,
-		10*time.Minute,
-		[]string{"create_archive"},
+		0,
 	)
 
 	if len(found) == 0 {

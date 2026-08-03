@@ -42,8 +42,6 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("%+v\n", req.Hints)
-
 	if req.DatasetID == "" {
 		WriteError(
 			w,
@@ -74,7 +72,7 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	
+
 	if (req.Time.Around == "") != (req.Time.Tolerance == "") {
 		WriteError(
 			w,
@@ -85,48 +83,11 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if (req.Context.Before == "") != (req.Context.After == "") {
-		WriteError(
-			w,
-			http.StatusBadRequest,
-			"INVALID_CONTEXT",
-			"context.before and context.after must be specified together",
-		)
-		return
-	}
-
 	var (
+		requirements []domain.NearbyRequirement
 		before       time.Duration
 		after        time.Duration
-		nearbyWithin time.Duration
-		actions      []string
 	)
-
-	if req.Context.Before != "" {
-		var err error
-
-		before, err = search.ParseTolerance(req.Context.Before)
-		if err != nil {
-			WriteError(
-				w,
-				http.StatusBadRequest,
-				"INVALID_DURATION",
-				"context.before must be duration",
-			)
-			return
-		}
-
-		after, err = search.ParseTolerance(req.Context.After)
-		if err != nil {
-			WriteError(
-				w,
-				http.StatusBadRequest,
-				"INVALID_DURATION",
-				"context.after must be duration",
-			)
-			return
-		}
-	}
 
 	if len(req.Context.RequireNearby) > 0 {
 
@@ -142,7 +103,13 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			actions = append(actions, rule.Action)
+			requirements = append(
+				requirements,
+				domain.NearbyRequirement{
+					Action: rule.Action,
+					Within: rule.Within,
+				},
+			)
 
 			if rule.Within != "" {
 
@@ -167,10 +134,66 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 					)
 					return
 				}
-
-				nearbyWithin = duration
 			}
 		}
+	}
+
+	if req.Context.Before != "" {
+
+		duration, err := search.ParseTolerance(
+			req.Context.Before,
+		)
+
+		if err != nil {
+			WriteError(
+				w,
+				http.StatusBadRequest,
+				"INVALID_DURATION",
+				"context.before must be duration",
+			)
+			return
+		}
+
+		if duration <= 0 {
+			WriteError(
+				w,
+				http.StatusBadRequest,
+				"INVALID_CONTEXT",
+				"context.before must be positive",
+			)
+			return
+		}
+
+		before = duration
+	}
+
+	if req.Context.After != "" {
+
+		duration, err := search.ParseTolerance(
+			req.Context.After,
+		)
+
+		if err != nil {
+			WriteError(
+				w,
+				http.StatusBadRequest,
+				"INVALID_DURATION",
+				"context.after must be duration",
+			)
+			return
+		}
+
+		if duration <= 0 {
+			WriteError(
+				w,
+				http.StatusBadRequest,
+				"INVALID_CONTEXT",
+				"context.after must be positive",
+			)
+			return
+		}
+
+		after = duration
 	}
 
 	if req.Time.Around != "" {
@@ -211,7 +234,12 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 	results := make([]domain.SearchResult, 0)
 
 	for _, event := range events {
-
+fmt.Println(
+    "EVENT:",
+    event.EventID,
+    event.Timestamp,
+    event.UserID,
+)
 		if !search.MatchTime(
 			event.Timestamp,
 			req.Time.Around,
@@ -227,61 +255,39 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 			false,
 		)
 
-		if baseScore == 0 && len(actions) == 0 {
+		if baseScore == 0 && len(requirements) == 0 {
 			continue
 		}
 
 		var nearby []domain.Event
 		nearbyMatched := false
 
-		if len(actions) > 0 {
-
-			nearbyBefore := before
-			nearbyAfter := after
-
-			if nearbyBefore == 0 && nearbyAfter == 0 {
-				nearbyBefore = nearbyWithin
-				nearbyAfter = nearbyWithin
-			}
-
-			if nearbyWithin > 0 {
-				if nearbyBefore == 0 || nearbyWithin < nearbyBefore {
-					nearbyBefore = nearbyWithin
-				}
-
-				if nearbyAfter == 0 || nearbyWithin < nearbyAfter {
-					nearbyAfter = nearbyWithin
-				}
-			}
+		if len(requirements) > 0 {
 
 			nearby = search.FindNearbyEvents(
 				events,
 				event,
-				nearbyBefore,
-				nearbyAfter,
-				actions,
+				requirements,
+				before,
+				after,
 			)
 
-			foundActions := make(map[string]bool)
+			found := make(map[string]int)
 
 			for _, e := range nearby {
-
-				if e.EventID == event.EventID {
-					continue
-				}
-
-				foundActions[e.Action] = true
+				found[e.Action]++
 			}
 
 			missing := false
 
-			for _, action := range actions {
+			for _, req := range requirements {
 
-				if !foundActions[action] {
+				if found[req.Action] == 0 {
 					missing = true
 					break
 				}
 
+				found[req.Action]--
 			}
 
 			if missing {
@@ -312,6 +318,8 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 			results = append(
 				results,
 				domain.SearchResult{
+					EventID:       event.EventID,
+					Timestamp:     event.Timestamp,
 					Score:         score,
 					MatchedHints:  matched,
 					Contributions: contributions,
@@ -325,7 +333,12 @@ func (s *Server) SearchHandler(w http.ResponseWriter, r *http.Request) {
 	sort.SliceStable(results, func(i, j int) bool {
 
 		if results[i].Score == results[j].Score {
-			return results[i].Event.Timestamp > results[j].Event.Timestamp
+
+			if len(results[i].MatchedHints) == len(results[j].MatchedHints) {
+				return results[i].Event.Timestamp > results[j].Event.Timestamp
+			}
+
+			return len(results[i].MatchedHints) > len(results[j].MatchedHints)
 		}
 
 		return results[i].Score > results[j].Score

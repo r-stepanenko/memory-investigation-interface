@@ -12,40 +12,63 @@ import (
 func newTestServer() *Server {
 
 	events := []domain.Event{
+		// time filter
 		{
 			EventID:   "evt_1",
-			Timestamp: "2026-06-20T10:00:00Z",
+			Timestamp: "2026-06-20T10:55:00Z",
 			UserID:    "ivan",
-			Action:    "email_send",
-			FileName:  "clients.xlsx",
+			Action:    "login",
 		},
 		{
 			EventID:   "evt_2",
-			Timestamp: "2026-06-20T10:20:00Z",
-			UserID:    "alex",
+			Timestamp: "2026-06-20T11:00:00Z",
+			UserID:    "ivan",
 			Action:    "file_copy",
-			FileName:  "salary.xlsx",
+		},
+		{
+			EventID:   "evt_3",
+			Timestamp: "2026-06-20T11:05:00Z",
+			UserID:    "ivan",
+			Action:    "logout",
+		},
+		{
+			EventID:   "evt_4",
+			Timestamp: "2026-06-20T12:00:00Z",
+			UserID:    "ivan",
+			Action:    "login",
+		},
+
+		// nearby
+		{
+			EventID:   "evt_33",
+			Timestamp: "2026-06-20T11:40:00Z",
+			UserID:    "ivan",
+			Action:    "email_send",
+		},
+		{
+			EventID:   "evt_34",
+			Timestamp: "2026-06-20T11:35:00Z",
+			UserID:    "ivan",
+			Action:    "create_archive",
 		},
 	}
 
 	return &Server{
-
 		Datasets: map[string][]domain.Event{
 			"control": events,
 		},
 
-		Events: map[string]map[string]domain.Event{
-			"control": {
-				"evt_1": events[0],
-				"evt_2": events[1],
-			},
-		},
-
 		Searches: make(map[string]domain.SearchResponse),
 
-		EventIndex: map[string]int{
-			"evt_1": 0,
-			"evt_2": 1,
+		EventIndex: map[string]map[string]int{
+			"control": {
+				"evt_1":  0,
+				"evt_2":  1,
+				"evt_3":  2,
+				"evt_4":  3,
+				"evt_33": 4,
+				"evt_34": 5,
+			},
 		},
 	}
 }
@@ -100,7 +123,6 @@ func TestSearchHandler(t *testing.T) {
 	)
 
 	if rec.Code != http.StatusOK {
-
 		t.Fatalf(
 			"expected 200 got %d",
 			rec.Code,
@@ -208,18 +230,19 @@ func TestSearchNearbyFound(t *testing.T) {
 
 	event := domain.Event{
 		EventID:   "evt_3",
-		Timestamp: "2026-06-20T10:20:00Z",
+		Timestamp: "2026-06-20T10:10:00Z",
 		UserID:    "ivan",
 		Action:    "create_archive",
 		FileName:  "archive.zip",
 	}
 
-	server.Datasets["control"] = append(
-		server.Datasets["control"],
-		event,
-	)
+	server.Datasets["control"] =
+		append(
+			server.Datasets["control"],
+			event,
+		)
 
-	server.Events["control"]["evt_3"] = event
+	server.EventIndex["control"]["evt_3"] = 2
 
 	rec := executeSearch(
 		t,
@@ -236,8 +259,7 @@ func TestSearchNearbyFound(t *testing.T) {
 			"context": map[string]any{
 
 				"before": "30m",
-
-				"after": "30m",
+				"after":  "30m",
 
 				"require_nearby": []map[string]string{
 					{
@@ -249,7 +271,6 @@ func TestSearchNearbyFound(t *testing.T) {
 	)
 
 	if rec.Code != http.StatusOK {
-
 		t.Fatalf(
 			"expected 200 got %d",
 			rec.Code,
@@ -267,7 +288,6 @@ func TestSearchNearbyFound(t *testing.T) {
 	}
 
 	if len(response.Candidates) == 0 {
-
 		t.Fatal(
 			"expected nearby candidate",
 		)
@@ -311,8 +331,7 @@ func TestSearchNearbyMissing(t *testing.T) {
 			"context": map[string]any{
 
 				"before": "5m",
-
-				"after": "5m",
+				"after":  "5m",
 
 				"require_nearby": []map[string]string{
 					{

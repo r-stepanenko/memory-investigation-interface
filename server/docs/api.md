@@ -1,4 +1,10 @@
-# Event Memory Search API
+# API Documentation
+
+## POST /api/search
+
+This document describes the HTTP API of the event-memory-search service.
+
+The API follows an OpenAPI-style REST documentation format.
 
 ## Overview
 

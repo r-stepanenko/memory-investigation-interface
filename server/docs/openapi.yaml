@@ -1,0 +1,226 @@
+openapi: 3.0.3
+
+info:
+  title: Event Memory Search API
+  description: |
+    Backend API for searching events by incomplete and inaccurate descriptions.
+    The service ranks candidates, calculates score and provides explanations.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Health
+  - name: Datasets
+  - name: Search
+  - name: Events
+
+paths:
+
+  /api/health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      responses:
+        "200":
+          description: Backend is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  status: ok
+
+
+  /api/datasets:
+    get:
+      tags:
+        - Datasets
+      summary: List available datasets
+      responses:
+        "200":
+          description: Dataset list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+
+  /api/search:
+    post:
+      tags:
+        - Search
+      summary: Search events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+
+      responses:
+        "200":
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+
+
+  /api/search/{search_id}:
+    get:
+      tags:
+        - Search
+      summary: Get search result by id
+      parameters:
+        - name: search_id
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        "200":
+          description: Search response
+
+
+  /api/events/{event_id}/context:
+    get:
+      tags:
+        - Events
+      summary: Get event context
+
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema:
+            type: string
+
+        - name: dataset
+          in: query
+          required: false
+          schema:
+            type: string
+
+      responses:
+        "200":
+          description: Event context
+
+
+  /api/search/{search_id}/candidates/{event_id}/explain:
+    get:
+      tags:
+        - Search
+      summary: Explain candidate score
+
+      parameters:
+        - name: search_id
+          in: path
+          required: true
+          schema:
+            type: string
+
+        - name: event_id
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        "200":
+          description: Score explanation
+
+
+components:
+
+  schemas:
+
+    SearchRequest:
+      type: object
+
+      properties:
+
+        dataset_id:
+          type: string
+          example: control
+
+        time:
+          type: object
+          properties:
+            around:
+              type: string
+              format: date-time
+
+            tolerance:
+              type: string
+              example: 10m
+
+
+        hints:
+          type: object
+
+          properties:
+
+            user_id:
+              type: string
+
+            file_name:
+              type: string
+
+            action:
+              type: string
+
+            destination_type:
+              type: string
+
+
+        context:
+          type: object
+
+          properties:
+
+            require_nearby:
+              type: object
+
+              properties:
+
+                action:
+                  type: string
+
+                tolerance:
+                  type: string
+
+
+    SearchResponse:
+
+      type: object
+
+      properties:
+
+        search_id:
+          type: string
+
+        candidates:
+          type: array
+
+          items:
+
+            type: object
+
+            properties:
+
+              event_id:
+                type: string
+
+              score:
+                type: number
+
+              matched_hints:
+                type: array
+                items:
+                  type: string

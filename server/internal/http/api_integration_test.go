@@ -48,9 +48,11 @@ func TestSearchAPIIntegration(t *testing.T) {
 			),
 		},
 
-		EventIndex: map[string]int{
-			"evt_1": 0,
-			"evt_2": 1,
+		EventIndex: map[string]map[string]int{
+			"control": {
+				"evt_1": 0,
+				"evt_2": 1,
+			},
 		},
 	}
 

@@ -13,27 +13,27 @@ import (
 
 func createTestServer() *apphttp.Server {
 
-	events := map[string]domain.Event{
-		"evt1": {
-			EventID:   "evt1",
+	events := []domain.Event{
+		{
+			EventID:   "evt_1",
 			Timestamp: "2026-06-20T10:55:00Z",
 			UserID:    "ivan",
 			Action:    "login",
 		},
-		"evt2": {
-			EventID:   "evt2",
+		{
+			EventID:   "evt_2",
 			Timestamp: "2026-06-20T11:00:00Z",
 			UserID:    "ivan",
 			Action:    "file_copy",
 		},
-		"evt3": {
-			EventID:   "evt3",
+		{
+			EventID:   "evt_3",
 			Timestamp: "2026-06-20T11:05:00Z",
 			UserID:    "ivan",
 			Action:    "logout",
 		},
-		"evt4": {
-			EventID:   "evt4",
+		{
+			EventID:   "evt_4",
 			Timestamp: "2026-06-20T12:00:00Z",
 			UserID:    "ivan",
 			Action:    "login",
@@ -41,19 +41,24 @@ func createTestServer() *apphttp.Server {
 	}
 
 	return &apphttp.Server{
+
 		Datasets: map[string][]domain.Event{
-			"test": {
-				events["evt1"],
-				events["evt2"],
-				events["evt3"],
-				events["evt4"],
+			"control": events,
+		},
+
+		Searches: make(
+			map[string]domain.SearchResponse,
+		),
+
+		EventIndex: map[string]map[string]int{
+
+			"control": {
+				"evt1": 0,
+				"evt2": 1,
+				"evt3": 2,
+				"evt4": 3,
 			},
 		},
-		Events: map[string]map[string]domain.Event{
-			"test": events,
-		},
-		Searches:   make(map[string]domain.SearchResponse),
-		EventIndex: make(map[string]int),
 	}
 }
 
@@ -62,13 +67,17 @@ func TestSearchTimeFilter(t *testing.T) {
 	server := createTestServer()
 
 	request := map[string]interface{}{
-		"dataset_id": "test",
+
+		"dataset_id": "control",
+
 		"time": map[string]string{
 			"around":    "2026-06-20T11:00:00Z",
 			"tolerance": "10m",
 		},
+
 		"hints": map[string]string{
 			"user_id": "ivan",
+			"action":  "login",
 		},
 	}
 
@@ -84,11 +93,20 @@ func TestSearchTimeFilter(t *testing.T) {
 		bytes.NewReader(body),
 	)
 
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
 	rec := httptest.NewRecorder()
 
-	server.SearchHandler(rec, req)
+	server.SearchHandler(
+		rec,
+		req,
+	)
 
 	if rec.Code != http.StatusOK {
+
 		t.Fatalf(
 			"expected status 200, got %d body=%s",
 			rec.Code,
@@ -108,7 +126,10 @@ func TestSearchTimeFilter(t *testing.T) {
 	}
 
 	if len(response.Candidates) == 0 {
-		t.Fatal("expected candidates")
+
+		t.Fatal(
+			"expected candidates",
+		)
 	}
 
 	for _, candidate := range response.Candidates {

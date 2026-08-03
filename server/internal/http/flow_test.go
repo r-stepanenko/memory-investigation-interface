@@ -23,14 +23,9 @@ func TestSearchContextExplainFlow(t *testing.T) {
 			},
 		},
 
-		Events: map[string]map[string]domain.Event{
+		EventIndex: map[string]map[string]int{
 			"control": {
-				"evt_33": {
-					EventID:   "evt_33",
-					Timestamp: "2026-06-20T11:40:00Z",
-					UserID:    "ivan",
-					Action:    "email_send",
-				},
+				"evt_33": 0,
 			},
 		},
 
@@ -145,23 +140,10 @@ func TestExplainNearbyContribution(t *testing.T) {
 			},
 		},
 
-		Events: map[string]map[string]domain.Event{
-
+		EventIndex: map[string]map[string]int{
 			"control": {
-
-				"evt_1": {
-					EventID:   "evt_1",
-					Timestamp: "2026-06-20T11:00:00Z",
-					UserID:    "ivan",
-					Action:    "email_send",
-				},
-
-				"evt_2": {
-					EventID:   "evt_2",
-					Timestamp: "2026-06-20T11:05:00Z",
-					UserID:    "ivan",
-					Action:    "file_copy",
-				},
+				"evt_1": 0,
+				"evt_2": 1,
 			},
 		},
 
@@ -216,7 +198,6 @@ func TestExplainNearbyContribution(t *testing.T) {
 	candidate := searchResp.Candidates[0]
 
 	if candidate.Score != 10 {
-
 		t.Fatalf(
 			"expected score 10 got %v",
 			candidate.Score,
@@ -253,7 +234,6 @@ func TestExplainNearbyContribution(t *testing.T) {
 	}
 
 	if explain.Score != candidate.Score {
-
 		t.Fatalf(
 			"score mismatch: search=%v explain=%v",
 			candidate.Score,
@@ -270,7 +250,6 @@ func TestExplainNearbyContribution(t *testing.T) {
 			nearbyFound = true
 
 			if contribution.Points != 10 {
-
 				t.Fatalf(
 					"expected nearby points 10 got %v",
 					contribution.Points,
@@ -278,7 +257,6 @@ func TestExplainNearbyContribution(t *testing.T) {
 			}
 
 			if !contribution.Matched {
-
 				t.Fatal(
 					"nearby contribution should be matched",
 				)
@@ -287,7 +265,6 @@ func TestExplainNearbyContribution(t *testing.T) {
 	}
 
 	if !nearbyFound {
-
 		t.Fatal(
 			"nearby contribution not found",
 		)

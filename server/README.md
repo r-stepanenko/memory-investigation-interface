@@ -1,8 +1,15 @@
-# Backend
+# Event Memory Search API — Backend
 
-Backend проекта **Event Memory Search API** реализован на Go и предоставляет REST API для поиска событий, получения контекста и объяснения расчёта score.
+Backend проекта **Event Memory Search API** реализован на Go и предоставляет REST API для:
 
-## Сборка
+* поиска событий по неточному описанию;
+* ранжирования кандидатов по score;
+* получения контекста события;
+* объяснения расчёта score.
+
+---
+
+# Сборка
 
 Собрать проект можно одной из команд:
 
@@ -10,57 +17,98 @@ Backend проекта **Event Memory Search API** реализован на Go 
 go build ./...
 ```
 
-или
+или:
 
 ```bash
-make -f Makefile build
+make build
 ```
 
-## Запуск
+---
 
-Запустить сервер можно одной из команд:
+# Генерация больших данных
+
+Для генерации тестовых датасетов:
+
+```bash
+make generate
+```
+
+Будут созданы файлы:
+
+```
+internal/datasets/events100k.jsonl
+internal/datasets/events1m.jsonl
+```
+
+Данные используются для проверки производительности поиска.
+
+---
+
+# Запуск Backend
+
+Запустить сервер:
 
 ```bash
 go run ./cmd/event-memory-search-api
 ```
 
-или
+или:
 
 ```bash
-make -f Makefile run
+make run
 ```
 
-После запуска сервер будет доступен по адресу:
+Также поддерживается запуск через CLI:
 
-```text
+```bash
+go run ./cmd/event-memory-search-api serve
+```
+
+После запуска API доступен:
+
+```
 http://localhost:8080
 ```
 
-## Тестирование
+---
 
-Запустить HTTP-тесты:
+# API
 
-```bash
-go test -v ./internal/http
+## Health check
+
+Проверка состояния сервера:
+
+```
+GET /api/health
 ```
 
-или
+Пример:
 
-```bash
-make -f Makefile test
+```
+http://localhost:8080/api/health
 ```
 
-## Проверка состояния сервера
+---
 
-Проверить, что сервер успешно запущен:
+## Получение списка датасетов
 
-```text
-GET http://localhost:8080/api/health
+```
+GET /api/datasets
 ```
 
-## Выполнение поиска
+Возвращает доступные наборы событий.
 
-Пример запроса поиска (PowerShell):
+---
+
+# Поиск событий
+
+Endpoint:
+
+```
+POST /api/search
+```
+
+Пример запроса PowerShell:
 
 ```powershell
 curl -Method POST http://localhost:8080/api/search `
@@ -75,60 +123,222 @@ curl -Method POST http://localhost:8080/api/search `
 
 Ответ содержит:
 
-* **search_id** — идентификатор поиска;
-* **candidates** — найденные события;
-* **score** — итоговая оценка совпадения;
-* **matched_hints** — совпавшие поисковые условия.
+* `search_id` — идентификатор поиска;
+* `candidates` — найденные события;
+* `score` — итоговую оценку совпадения;
+* `matched_hints` — совпавшие условия;
+* `contributions` — вклад каждого совпадения.
 
-## Получение результатов поиска
+---
 
-После выполнения поиска результаты доступны по адресу:
+# Получение результатов поиска
 
-```text
-GET http://localhost:8080/api/search/{search_id}
+После выполнения поиска результаты доступны:
+
+```
+GET /api/search/{search_id}
 ```
 
-где `{search_id}` — идентификатор, полученный при выполнении поиска.
+где:
 
-## Explain
-
-Получить подробное объяснение расчёта score для найденного события:
-
-```text
-GET http://localhost:8080/api/search/{search_id}/candidates/{event_id}/explain
+```
+{search_id}
 ```
 
-Ответ включает:
+— идентификатор поиска из ответа `/api/search`.
+
+---
+
+# Explain
+
+Подробное объяснение расчёта score:
+
+```
+GET /api/search/{search_id}/candidates/{event_id}/explain
+```
+
+Ответ содержит:
 
 * итоговый score;
-* вклад каждого совпадения (contributions);
-* список несовпавших условий (missed_hints).
+* вклад каждого совпадения (`contributions`);
+* несовпавшие условия (`missed_hints`).
 
-## Контекст события
+---
 
-Получить события, произошедшие до и после выбранного события:
+# Контекст события
 
-```text
-GET http://localhost:8080/api/events/{event_id}/context
+Получение событий вокруг выбранного события:
+
+```
+GET /api/events/{event_id}/context
 ```
 
-При необходимости можно указать параметры запроса:
+Поддерживаемые параметры:
 
-* `dataset` — идентификатор набора данных;
-* `before` — окно поиска событий до выбранного события;
-* `after` — окно поиска событий после выбранного события.
+* `dataset` — идентификатор датасета;
+* `before` — временное окно до события;
+* `after` — временное окно после события.
 
 Пример:
 
-```text
-GET http://localhost:8080/api/events/{event_id}/context?dataset=control&before=30m&after=30m
+```
+GET /api/events/evt_1/context?dataset=control&before=30m&after=30m
 ```
 
-# backend
-cd server
-go run ./cmd/event-memory-search-api
+---
 
-# frontend
+# Тестирование
+
+Запуск тестов:
+
+```bash
+go test ./...
+```
+
+или:
+
+```bash
+make test
+```
+
+HTTP-тесты:
+
+```bash
+go test -v ./internal/http
+```
+
+---
+
+# Frontend integration
+
+## Backend
+
+```bash
+cd server
+go run ./cmd/event-memory-search-api serve
+```
+
+или:
+
+```bash
+make demo
+```
+
+---
+
+## Frontend
+
+```bash
 cd front
 npm install
 npm run dev
+```
+
+Frontend подключается к Backend:
+
+```
+http://localhost:8080
+```
+
+Используемые API:
+
+```
+GET  /api/datasets
+POST /api/search
+GET  /api/events/{id}/context
+```
+
+---
+
+# API Documentation
+
+Подробное описание API:
+
+```
+docs/api.md
+```
+
+Документация содержит:
+
+* описание endpoints;
+* форматы запросов;
+* форматы ответов;
+* обработку ошибок.
+
+API построен в стиле OpenAPI.
+
+---
+
+# Benchmark
+
+Используемые датасеты:
+
+* 100k событий;
+* 1M событий.
+
+Запуск:
+
+```bash
+make bench
+```
+
+Результаты:
+
+| Dataset     | Время поиска |
+| ----------- | ------------ |
+| 100k events | ~500 ms      |
+| 1M events   | ~1.8 s       |
+
+---
+
+# Frontend Demo
+
+Запуск демонстрации:
+
+Backend:
+
+```bash
+make demo
+```
+
+Frontend:
+
+```bash
+cd front
+npm install
+npm run dev
+```
+
+Демонстрация использует:
+
+```
+GET  /api/datasets
+POST /api/search
+GET  /api/events/{id}/context
+```
+
+---
+
+# Verification
+
+Проверено:
+
+```bash
+go test ./...
+```
+
+и:
+
+```powershell
+.\check.ps1
+```
+
+Результат проверки:
+
+* Backend запускается;
+* API endpoints работают;
+* поиск возвращает кандидатов;
+* score рассчитывается;
+* explain возвращает детализацию;
+* context работает;
+* тесты проходят успешно.

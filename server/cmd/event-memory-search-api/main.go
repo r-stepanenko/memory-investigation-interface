@@ -67,84 +67,58 @@ func main() {
 		testStats.Skipped,
 	)
 
-	events100k, stats100k, err := datasets.LoadEvents(
+	events100k, _ := loadOptionalDataset(
+		"large100k",
 		filepath.Join(config.DatasetsDir, "events100k.jsonl"),
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	log.Printf(
-		"Loaded large100k dataset: %d events (%d skipped)",
-		stats100k.Loaded,
-		stats100k.Skipped,
-	)
-
-	events1m, stats1m, err := datasets.LoadEvents(
+	events1m, _ := loadOptionalDataset(
+		"large1m",
 		filepath.Join(config.DatasetsDir, "events1m.jsonl"),
 	)
-	if err != nil {
-		log.Fatal(err)
+
+	eventIndex := make(map[string]map[string]int)
+
+	datasetsMap := map[string][]domain.Event{
+		"control": events,
+		"test":    testEvents,
 	}
 
-	log.Printf(
-		"Loaded large1m dataset: %d events (%d skipped)",
-		stats1m.Loaded,
-		stats1m.Skipped,
-	)
-
-	eventMap := make(map[string]map[string]domain.Event)
-	eventMap["control"] = make(map[string]domain.Event)
-
-	for _, event := range events {
-		eventMap["control"][event.EventID] = event
+	userIndexes := map[string]*search.UserIndex{
+		"control": search.BuildUserIndex(events),
+		"test":    search.BuildUserIndex(testEvents),
 	}
 
-	eventMap["test"] = make(map[string]domain.Event)
+	eventIndex["control"] = buildIndexes(events)
+	eventIndex["test"] = buildIndexes(testEvents)
 
-	for _, event := range testEvents {
-		eventMap["test"][event.EventID] = event
+	if len(events100k) > 0 {
+
+		eventIndex["large100k"] =
+			buildIndexes(events100k)
+
+		datasetsMap["large100k"] = events100k
+
+		userIndexes["large100k"] =
+			search.BuildUserIndex(events100k)
 	}
 
-	eventMap["large100k"] = make(map[string]domain.Event)
+	if len(events1m) > 0 {
 
-	for _, event := range events100k {
-		eventMap["large100k"][event.EventID] = event
+		eventIndex["large1m"] =
+			buildIndexes(events1m)
+
+		datasetsMap["large1m"] = events1m
+
+		userIndexes["large1m"] =
+			search.BuildUserIndex(events1m)
 	}
-
-	eventMap["large1m"] = make(map[string]domain.Event)
-
-	for _, event := range events1m {
-		eventMap["large1m"][event.EventID] = event
-	}
-	eventIndex := make(map[string]int)
-
-	for i, event := range events {
-		eventIndex[event.EventID] = i
-	}
-
-	controlIndex := search.BuildUserIndex(events)
-	testIndex := search.BuildUserIndex(testEvents)
-	index100k := search.BuildUserIndex(events100k)
-	index1m := search.BuildUserIndex(events1m)
 
 	server := &myhttp.Server{
-		Datasets: map[string][]domain.Event{
-			"control":   events,
-			"test":      testEvents,
-			"large100k": events100k,
-			"large1m":   events1m,
-		},
-
-		UserIndexes: map[string]*search.UserIndex{
-			"control":   controlIndex,
-			"test":      testIndex,
-			"large100k": index100k,
-			"large1m":   index1m,
-		},
+		Datasets:    datasetsMap,
+		UserIndexes: userIndexes,
 
 		Searches:   make(map[string]domain.SearchResponse),
-		Events:     eventMap,
 		EventIndex: eventIndex,
 	}
 
@@ -194,4 +168,42 @@ func cors(next nethttp.Handler) nethttp.Handler {
 		next.ServeHTTP(w, r)
 
 	})
+}
+
+func buildIndexes(events []domain.Event) map[string]int {
+
+	eventIndex := make(map[string]int)
+
+	for i, event := range events {
+		eventIndex[event.EventID] = i
+	}
+
+	return eventIndex
+}
+
+func loadOptionalDataset(
+	name string,
+	path string,
+) ([]domain.Event, *datasets.LoadStats) {
+
+	events, stats, err := datasets.LoadEvents(path)
+
+	if err != nil {
+		log.Printf(
+			"Skipping dataset %s: %v",
+			name,
+			err,
+		)
+
+		return nil, nil
+	}
+
+	log.Printf(
+		"Loaded %s dataset: %d events (%d skipped)",
+		name,
+		stats.Loaded,
+		stats.Skipped,
+	)
+
+	return events, &stats
 }

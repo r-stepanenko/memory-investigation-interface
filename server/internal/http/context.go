@@ -2,12 +2,11 @@ package http
 
 import (
 	"encoding/json"
+	"event-memory-search-api/internal/domain"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
-
-	"event-memory-search-api/internal/domain"
 )
 
 func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +30,6 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		r.URL.Path,
 		"/api/events/",
 	)
-
 	parts := strings.Split(path, "/")
 
 	if len(parts) != 2 || parts[1] != "context" {
@@ -45,19 +43,18 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := parts[0]
-
 	datasetID := r.URL.Query().Get("dataset")
 
 	var (
-		event         domain.Event
-		datasetEvents map[string]domain.Event
-		ok            bool
+		event  domain.Event
+		events []domain.Event
+		ok     bool
+		idx    int
 	)
 
-	// если dataset передан
 	if datasetID != "" {
 
-		datasetEvents, ok = s.Events[datasetID]
+		events, ok = s.Datasets[datasetID]
 
 		if !ok {
 			WriteError(
@@ -69,9 +66,21 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		event, ok = datasetEvents[id]
+		indexMap, exists := s.EventIndex[datasetID]
 
-		if !ok {
+		if !exists {
+			WriteError(
+				w,
+				http.StatusInternalServerError,
+				"EVENT_INDEX_NOT_FOUND",
+				"event index not found",
+			)
+			return
+		}
+
+		idx, exists = indexMap[id]
+
+		if !exists {
 			WriteError(
 				w,
 				http.StatusNotFound,
@@ -81,15 +90,19 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		event = events[idx]
+
 	} else {
 
-		// ищем событие во всех dataset
+		for name, indexMap := range s.EventIndex {
 
-		for _, dataset := range s.Events {
+			foundIdx, exists := indexMap[id]
 
-			if found, exists := dataset[id]; exists {
-				event = found
-				datasetEvents = dataset
+			if exists {
+				events = s.Datasets[name]
+				event = events[foundIdx]
+				idx = foundIdx
+				datasetID = name
 				ok = true
 				break
 			}
@@ -105,17 +118,6 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	// превращаем map событий в slice
-
-	events := make([]domain.Event, 0, len(datasetEvents))
-
-	for _, e := range datasetEvents {
-		events = append(events, e)
-	}
-
-	before := []domain.Event{}
-	after := []domain.Event{}
 
 	targetTime, err := time.Parse(
 		time.RFC3339,
@@ -169,15 +171,12 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 		afterWindow = window
 	}
 
-	for _, e := range events {
+	before := []domain.Event{}
+	after := []domain.Event{}
 
-		if e.EventID == event.EventID {
-			continue
-		}
+	for i := idx - 1; i >= 0; i-- {
 
-		if e.UserID != event.UserID {
-			continue
-		}
+		e := events[i]
 
 		eventTime, err := time.Parse(
 			time.RFC3339,
@@ -188,31 +187,45 @@ func (s *Server) ContextHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if eventTime.Before(targetTime) {
-
-			diff := targetTime.Sub(eventTime)
-
-			if diff <= beforeWindow {
-				before = append(before, e)
-			}
+		if targetTime.Sub(eventTime) > beforeWindow {
+			break
 		}
 
-		if eventTime.After(targetTime) {
+		before = append(before, e)
+	}
 
-			diff := eventTime.Sub(targetTime)
+	for i := idx + 1; i < len(events); i++ {
 
-			if diff <= afterWindow {
-				after = append(after, e)
-			}
+		e := events[i]
+
+		eventTime, err := time.Parse(
+			time.RFC3339,
+			e.Timestamp,
+		)
+
+		if err != nil {
+			continue
 		}
+
+		if eventTime.Sub(targetTime) > afterWindow {
+			break
+		}
+
+		after = append(after, e)
 	}
 
 	sort.Slice(before, func(i, j int) bool {
-		return before[i].Timestamp < before[j].Timestamp
+		t1, _ := time.Parse(time.RFC3339, before[i].Timestamp)
+		t2, _ := time.Parse(time.RFC3339, before[j].Timestamp)
+
+		return t1.Before(t2)
 	})
 
 	sort.Slice(after, func(i, j int) bool {
-		return after[i].Timestamp < after[j].Timestamp
+		t1, _ := time.Parse(time.RFC3339, after[i].Timestamp)
+		t2, _ := time.Parse(time.RFC3339, after[j].Timestamp)
+
+		return t1.Before(t2)
 	})
 
 	response := domain.EventContext{

@@ -9,17 +9,24 @@ import (
 func FindNearbyEvents(
 	events []domain.Event,
 	target domain.Event,
+	requirements []domain.NearbyRequirement,
 	before time.Duration,
 	after time.Duration,
-	actions []string,
 ) []domain.Event {
 
 	result := []domain.Event{}
 
-	targetTime, _ := time.Parse(
+	targetTime, err := time.Parse(
 		time.RFC3339,
 		target.Timestamp,
 	)
+
+	if err != nil {
+		return nil
+	}
+
+	startWindow := targetTime.Add(-before)
+	endWindow := targetTime.Add(after)
 
 	for _, e := range events {
 
@@ -27,7 +34,6 @@ func FindNearbyEvents(
 			continue
 		}
 
-		// важно
 		if e.UserID != target.UserID {
 			continue
 		}
@@ -41,16 +47,40 @@ func FindNearbyEvents(
 			continue
 		}
 
-		diff := eventTime.Sub(targetTime)
+		if before > 0 || after > 0 {
 
-		if diff < -before || diff > after {
-			continue
+			if eventTime.Before(startWindow) ||
+				eventTime.After(endWindow) {
+				continue
+			}
 		}
 
-		for _, action := range actions {
-			if e.Action == action {
-				result = append(result, e)
+		diff := eventTime.Sub(targetTime)
+
+		if diff < 0 {
+			diff = -diff
+		}
+
+		for _, req := range requirements {
+
+			if e.Action != req.Action {
+				continue
 			}
+
+			if req.Within != "" {
+
+				within, err := ParseTolerance(req.Within)
+
+				if err != nil {
+					continue
+				}
+
+				if diff > within {
+					continue
+				}
+			}
+
+			result = append(result, e)
 		}
 	}
 

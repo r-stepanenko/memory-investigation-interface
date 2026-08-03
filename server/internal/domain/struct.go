@@ -57,6 +57,8 @@ type SearchRequest struct {
 
 // один кандидат
 type SearchResult struct {
+	EventID       string         `json:"event_id"`
+	Timestamp     string         `json:"timestamp"`
 	Score         float64        `json:"score"`
 	Summary       string         `json:"summary"`
 	MatchedHints  []string       `json:"matched_hints"`
@@ -103,4 +105,9 @@ type ExplainResponse struct {
 	Score         float64        `json:"score"`
 	Contributions []Contribution `json:"contributions"`
 	MissedHints   []MissedHint   `json:"missed_hints,omitempty"`
+}
+
+type NearbyRequirement struct {
+	Action string `json:"action"`
+	Within string `json:"within"`
 }

@@ -13,6 +13,7 @@ func BenchmarkSearch100K(b *testing.B) {
 	events, _, err := datasets.LoadEvents(
 		filepath.Join("..", "datasets", "events100k.jsonl"),
 	)
+
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -30,6 +31,7 @@ func BenchmarkSearch100K(b *testing.B) {
 		candidates := index.Find(hints.UserID)
 
 		for _, event := range candidates {
+
 			CalculateScore(
 				event,
 				hints,
@@ -45,6 +47,7 @@ func BenchmarkSearch1M(b *testing.B) {
 	events, _, err := datasets.LoadEvents(
 		filepath.Join("..", "datasets", "events1m.jsonl"),
 	)
+
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -62,6 +65,7 @@ func BenchmarkSearch1M(b *testing.B) {
 		candidates := index.Find(hints.UserID)
 
 		for _, event := range candidates {
+
 			CalculateScore(
 				event,
 				hints,
