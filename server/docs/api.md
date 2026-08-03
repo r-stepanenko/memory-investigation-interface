@@ -1,8 +1,17 @@
 # Event Memory Search API
 
-REST API для поиска и анализа событий пользователей.
+## Overview
 
-## Base URL
+Backend API для поиска событий по неполному и неточному описанию аналитика.
+
+Сервис:
+- принимает поисковый запрос;
+- ищет кандидатов среди событий;
+- рассчитывает score;
+- возвращает объяснение результата;
+- предоставляет контекст события.
+
+Base URL:
 
 ```
 http://localhost:8080
@@ -14,11 +23,9 @@ http://localhost:8080
 
 ## GET /api/health
 
-Проверяет доступность сервиса.
+Проверка состояния сервера.
 
 ### Response
-
-Status: `200 OK`
 
 ```json
 {
@@ -32,17 +39,20 @@ Status: `200 OK`
 
 ## GET /api/datasets
 
-Возвращает список доступных наборов событий.
+Возвращает доступные наборы событий.
 
 ### Response
 
-Status: `200 OK`
-
 ```json
 [
-  "control",
-  "test",
-  "large100k"
+  {
+    "id": "control",
+    "size": 33
+  },
+  {
+    "id": "large100k",
+    "size": 100000
+  }
 ]
 ```
 
@@ -52,109 +62,154 @@ Status: `200 OK`
 
 ## POST /api/search
 
-Создаёт поиск событий по заданным критериям.
+Поиск событий по описанию.
 
----
-
-## Request
+### Request
 
 ```json
 {
   "dataset_id": "control",
-  "time": {
-    "around": "2026-06-20T11:00:00Z",
-    "tolerance": "10m"
-  },
   "hints": {
     "user_id": "ivan",
-    "file_name": "report.docx",
-    "action": "login",
-    "destination_type": "usb",
-    "channel": "web",
-    "severity": "high"
+    "file_name": "client_data.zip",
+    "action": "download"
   },
-  "context": {
-    "before": "30m",
-    "after": "30m",
-    "require_nearby": {
-      "action": "create_archive",
-      "within": "10m"
-    }
-  },
-  "scoring": {
-    "limit": 10,
-    "min_score": 0
-  }
-}
-```
-
----
-
-# Search Hints
-
-Поддерживаемые критерии:
-
-| Поле             | Описание          |
-| ---------------- | ----------------- |
-| user_id          | Пользователь      |
-| file_name        | Имя файла         |
-| action           | Тип действия      |
-| destination_type | Тип назначения    |
-| channel          | Канал события     |
-| severity         | Уровень опасности |
-
----
-
-# Time Filter
-
-Фильтр по времени:
-
-```json
-{
   "time": {
-    "around": "2026-06-20T11:00:00Z",
+    "around": "2025-01-01T12:00:00Z",
     "tolerance": "10m"
-  }
+  },
+  "limit": 10,
+  "min_score": 50
 }
-```
-
-События выбираются из диапазона:
-
-```
-around - tolerance
-до
-around + tolerance
-```
-
-Пример:
-
-```
-11:00 ± 10 минут
-
-10:50 — 11:10
 ```
 
 ---
 
-# Context Search
+## Scoring
 
-## GET /api/events/{event_id}/context
+Каждый кандидат получает итоговый score:
 
-Возвращает событие и связанные события вокруг него.
+```
+score = hints_score + nearby_score
+```
 
-Ответ содержит:
+Максимум:
 
-* `event` — выбранное событие;
-* `before` — события до него;
-* `after` — события после него.
+```
+100 баллов
+```
+
+Распределение:
+
+- совпадения по hints — до 90 баллов;
+- nearby/context совпадение — до 10 баллов.
+
+В ответе возвращаются:
+
+- score;
+- matched_hints;
+- причины попадания кандидата.
+
+---
+
+# Search Result
+
+## GET /api/search/{search_id}
+
+Получение результата ранее выполненного поиска.
 
 ### Response
 
 ```json
 {
-  "event": {},
-  "before": [],
-  "after": []
+  "search_id": "abc123",
+  "candidates": [
+    {
+      "event_id": "evt_1",
+      "score": 90,
+      "matched_hints": [
+        "user_id",
+        "file_name"
+      ]
+    }
+  ]
+}
+```
+
+---
+
+# Event Context
+
+## GET /api/events/{event_id}/context
+
+Возвращает окружение события.
+
+Query parameters:
+
+```
+dataset
+```
+
+Пример:
+
+```
+GET /api/events/evt_32/context?dataset=test
+```
+
+Ответ содержит:
+
+- событие;
+- события до него;
+- события после него.
+
+---
+
+# Explain
+
+## GET /api/search/{search_id}/candidates/{event_id}/explain
+
+Возвращает детализацию расчёта score.
+
+Пример:
+
+```json
+{
+  "event_id": "evt_1",
+  "score": 90,
+  "contributions": [
+    {
+      "field": "user_id",
+      "points": 45
+    },
+    {
+      "field": "file_name",
+      "points": 45
+    }
+  ]
+}
+```
+
+---
+
+# Time Filtering
+
+Поиск поддерживает временное ограничение:
+
+Поля:
+
+```
+time.around
+time.tolerance
+```
+
+Пример:
+
+```json
+{
+  "time": {
+    "around": "2025-01-01T12:00:00Z",
+    "tolerance": "5m"
+  }
 }
 ```
 
@@ -162,257 +217,82 @@ around + tolerance
 
 # Nearby Search
 
-Поле:
+Поддерживается поиск событий рядом с указанным событием.
+
+Параметры:
+
+```
+require_nearby
+before
+after
+```
+
+Пример:
 
 ```json
 {
   "context": {
     "require_nearby": {
-      "action": "file_copy",
-      "within": "10m"
-    }
+      "action": "upload"
+    },
+    "before": "5m",
+    "after": "5m"
   }
 }
 ```
-
-Проверяет наличие связанного события рядом по времени.
-
-При успешном выполнении добавляется бонус:
-
-```
-nearby = +10 баллов
-```
-
----
-
-# Search Response
-
-## POST /api/search
-
-### Response
-
-```json
-{
-  "search_id": "srch_123",
-  "status": "done",
-  "dataset_id": "control",
-  "total_candidates": 10,
-  "candidates": [
-    {
-      "score": 100,
-      "matched_hints": [
-        "user_id exact",
-        "action exact"
-      ],
-      "event": {
-        "event_id": "evt_1",
-        "timestamp": "2026-06-20T11:00:00Z",
-        "user_id": "ivan",
-        "action": "login"
-      }
-    }
-  ]
-}
-```
-
----
-
-# Search By ID
-
-## GET /api/search/{search_id}
-
-Возвращает ранее выполненный поиск.
-
----
-
-# Explain Score
-
-## GET /api/search/{search_id}/candidates/{event_id}/explain
-
-Возвращает детализацию расчёта score.
-
-### Response
-
-```json
-{
-  "search_id": "srch_123",
-  "event_id": "evt_1",
-  "score": 100,
-  "contributions": [
-    {
-      "hint": "user_id",
-      "type": "exact",
-      "points": 90,
-      "matched": true,
-      "reason": "exact user id match"
-    },
-    {
-      "hint": "nearby",
-      "type": "matched",
-      "points": 10,
-      "matched": true,
-      "reason": "required nearby event found"
-    }
-  ]
-}
-```
-
----
-
-# Score Calculation
-
-Максимальный score:
-
-```
-100
-```
-
-Расчёт:
-
-```
-90 баллов — hints
-10 баллов — nearby bonus
-```
-
----
-
-## Hint Weight
-
-Вес распределяется между заполненными критериями:
-
-```
-weight = 90 / количество hints
-```
-
----
-
-## Exact Match
-
-Пример:
-
-```
-user_id = ivan
-event.user_id = ivan
-```
-
-Результат:
-
-```
-+90
-```
-
----
-
-## Partial Match
-
-Подстрочное совпадение:
-
-```
-query: ivan
-event: ivanov
-```
-
-Начисляется:
-
-```
-50% веса hint
-```
-
----
-
-# Sorting
-
-Результаты сортируются:
-
-1. По `score` по убыванию.
-2. При одинаковом score:
-
-   * новые события выше старых.
 
 ---
 
 # Error Responses
 
-Все ошибки возвращаются в JSON формате.
+API возвращает структурированные ошибки.
 
 Пример:
 
 ```json
 {
-  "code": "dataset_not_found",
-  "message": "dataset unknown not found"
+  "error": {
+    "code": "invalid_request",
+    "message": "dataset not found"
+  }
 }
 ```
 
 ---
 
-# HTTP Status Codes
+# Frontend Integration
 
-| Код | Описание                |
-| --- | ----------------------- |
-| 200 | Успешный запрос         |
-| 400 | Некорректный запрос     |
-| 404 | Ресурс не найден        |
-| 405 | Метод не поддерживается |
-| 500 | Ошибка сервера          |
+Frontend подключается к backend API:
+
+```
+Frontend
+   |
+   |
+HTTP JSON API
+   |
+   |
+Event Memory Search Backend
+```
+
+Основные сценарии:
+
+1. загрузка datasets;
+2. отправка поиска;
+3. просмотр кандидатов;
+4. просмотр explain;
+5. просмотр контекста события.
 
 ---
 
-# CLI Search
+# Performance
 
-Поддерживается поиск через CLI:
-
-```bash
-go run ./cmd/event-memory-search-api search
-```
-
-Параметры:
+Для проверки производительности используется benchmark:
 
 ```
---datasets
---events
---query
---out
+go test -bench .
 ```
 
-Пример:
+Поддерживаются наборы:
 
-```bash
-go run ./cmd/event-memory-search-api search \
---query query.json \
---out result.json
-```
-
----
-
-# Testing
-
-Запуск тестов:
-
-```bash
-go test ./...
-```
-
-Benchmark:
-
-```bash
-go test -bench=.
-```
-
----
-
-# Project Structure
-
-```
-cmd/
- └── event-memory-search-api/
-
-internal/
- ├── domain/
- ├── http/
- ├── search/
- └── datasets/
-
-docs/
- └── api.md
-```
+- 100k событий;
+- 1M событий.
